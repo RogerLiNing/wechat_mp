@@ -18,6 +18,9 @@ $ pipenv update
 >>> # 根据公众号名搜索其历史群发，并导出到Excel中
 >>> from wechat_mp import Wechat
 >>> client = Wechat(email=EMAIL, password=PASSWORD, qrcode_console=False)
+二维码已打开，请进行扫码 ...
+已扫描二维码,等待确认中 ...
+已确认登陆 ...
 >>> searched_accounts = client.search_official_account(nickname="人民日报")
 >>> searched_accounts
 [ <OfficialAccount: 人民日报>, <OfficialAccount: 人民日报评论>,<OfficialAccount: 人民日报社>...]
