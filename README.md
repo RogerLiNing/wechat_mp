@@ -77,7 +77,7 @@ Post登陆成功
 'http://mp.weixin.qq.com/s?__biz=MzU1MzEyMzYxMA==&mid=2247483679&idx=1&sn=b36c581c3639a7da40427adc88a7140f&chksm=fbf6eb6acc81627c2f697d70e16573b4f139616b6be323781d387fa457b592a12ae09fff20e4#rd'
 >>> my_account.save_articles_as_excel("编程这件事儿")
 ```
-![Excel内容](![image](https://user-images.githubusercontent.com/18111035/45262013-47c80e80-b440-11e8-86df-12ad6c6ab787.png))
+![文件内容](https://user-images.githubusercontent.com/18111035/45262013-47c80e80-b440-11e8-86df-12ad6c6ab787.png)
 
 # 作者公众号
 ### 编程这件事儿
