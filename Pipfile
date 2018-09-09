@@ -5,6 +5,9 @@ name = "pypi"
 
 [packages]
 requests = "*"
+pillow = "*"
+openpyxl = "*"
+sphinx = "*"
 
 [dev-packages]
 

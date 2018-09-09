@@ -1,0 +1,425 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>wechat_mp.client &#8212; Wechat_mp 0.1 文档</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="索引" href="../../genindex.html" />
+    <link rel="search" title="搜索" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>wechat_mp.client 源代码</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">@version: python3.6</span>
+<span class="sd">@author: &quot;Roger Lee&quot;</span>
+<span class="sd">@license: MIT Licence </span>
+<span class="sd">@contact: 704480843@qq.com</span>
+<span class="sd">@file: client.py</span>
+<span class="sd">@time: 2018/9/8 11:16</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">wechat_mp.utils</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">wechat_mp.exceptions</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">wechat_mp.models</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">urllib.parse</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="k">import</span> <span class="n">Image</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="k">import</span> <span class="n">BytesIO</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+                    <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> [</span><span class="si">%(threadName)s</span><span class="s1">:</span><span class="si">%(thread)d</span><span class="s1">] [</span><span class="si">%(name)s</span><span class="s1">:</span><span class="si">%(lineno)d</span><span class="s1">] [</span><span class="si">%(module)s</span><span class="s1">:</span><span class="si">%(funcName)s</span><span class="s1">] [</span><span class="si">%(levelname)s</span><span class="s1">]- </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">)</span>
+
+<span class="n">console</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+<span class="n">console</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;wechat_mp&#39;</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">console</span><span class="p">)</span>
+<span class="n">logger</span><span class="o">.</span><span class="n">propagate</span> <span class="o">=</span> <span class="kc">False</span>
+
+
+
+<div class="viewcode-block" id="Wechat"><a class="viewcode-back" href="../../api.html#wechat_mp.Wechat">[文档]</a><span class="k">class</span> <span class="nc">Wechat</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    主要的API操作程序，用来登陆和调用API方法</span>
+
+<span class="sd">    :param email: 登陆微信后台的邮箱</span>
+<span class="sd">    :type email: str</span>
+<span class="sd">    :param password: 登陆密码</span>
+<span class="sd">    :type passowrd: str</span>
+<span class="sd">    :param enable_cookies: 是否允许保存cookies，避免多次扫码登陆。</span>
+<span class="sd">    :type enable_cookies: bool</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">enable_cookies</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">email</span> <span class="o">=</span> <span class="n">email</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">passowrd</span> <span class="o">=</span> <span class="n">password</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enable_cookie</span> <span class="o">=</span> <span class="n">enable_cookies</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span> <span class="o">=</span> <span class="s1">&#39;https://mp.weixin.qq.com&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_login</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_token</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">enable_cookies</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_cookies</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_start_login</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_start_login</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Wechat.api_collections"><a class="viewcode-back" href="../../api.html#wechat_mp.Wechat.api_collections">[文档]</a>    <span class="k">def</span> <span class="nf">api_collections</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        统一管理所有运用到的API</span>
+
+<span class="sd">        :param name: 自定义名称</span>
+<span class="sd">        :type name: str</span>
+<span class="sd">        :param path: API路径</span>
+<span class="sd">        :type path: str</span>
+<span class="sd">        :return: 完整API地址</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">apis</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;login&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;start login&#39;</span><span class="p">:</span> <span class="s1">&#39;/cgi-bin/bizlogin?action=startlogin&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;post login&#39;</span><span class="p">:</span> <span class="s1">&#39;/cgi-bin/bizlogin?action=login&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;check login&#39;</span><span class="p">:</span> <span class="s1">&#39;/cgi-bin/loginqrcode?action=ask&amp;token=&amp;lang=zh_CN&amp;f=json&amp;ajax=1&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;redirect url&#39;</span><span class="p">:</span> <span class="s1">&#39;/cgi-bin/bizlogin?action=validate&amp;lang=zh_CN&amp;account=</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;qrcode url&#39;</span><span class="p">:</span> <span class="s1">&#39;/cgi-bin/loginqrcode?action=getqrcode&amp;param=4300&amp;rd=</span><span class="si">{0}</span><span class="s1">&#39;</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;search&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;search account&#39;</span><span class="p">:</span> <span class="s1">&#39;/cgi-bin/searchbiz?action=search_biz&amp;token=</span><span class="si">{0}</span><span class="s1">&amp;lang=zh_CN&amp;f=json&amp;ajax=1&amp;random=</span><span class="si">{1}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;article list&#39;</span><span class="p">:</span><span class="s1">&#39;/cgi-bin/appmsg?token=</span><span class="si">{0}</span><span class="s1">&amp;lang=zh_CN&amp;f=json&amp;ajax=1&amp;random=</span><span class="si">{1}</span><span class="s1">&amp;action=list_ex&amp;type=9&#39;</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_base_url</span> <span class="o">+</span> <span class="n">apis</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">path</span><span class="p">]</span></div>
+
+    <span class="k">def</span> <span class="nf">_check_cookies</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        检查本地保存的cookies是否有效</span>
+
+<span class="sd">        :return: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;User-Agent&#39;</span><span class="p">:</span> <span class="s1">&#39;Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Origin&#39;</span><span class="p">:</span> <span class="s1">&#39;https://mp.weixin.qq.com&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Pragma&#39;</span><span class="p">:</span> <span class="s1">&#39;no-cache&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Cache-Control&#39;</span><span class="p">:</span> <span class="s1">&#39;no-cache&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;X-Requested-With&#39;</span><span class="p">:</span> <span class="s1">&#39;XMLHttpRequest&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/x-www-form-urlencoded;charset=&quot;UTF-8&quot;&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Accept&#39;</span><span class="p">:</span> <span class="s1">&#39;*/*&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Referer&#39;</span><span class="p">:</span> <span class="s1">&#39;https://mp.weixin.qq.com/&#39;</span><span class="p">}</span>
+        <span class="n">file_exist</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;cookies.txt&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">file_exist</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;cookies.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;cookies.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cookies</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">cookies</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">cookies</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">decoder</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://mp.weixin.qq.com/&#39;</span><span class="p">,</span> <span class="n">cookies</span><span class="o">=</span><span class="n">cookies</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+        <span class="n">find_token</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;&amp;token=(\d+)&#39;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">find_token</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_login</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="n">find_token</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;本地cookies有效，无需再次登陆&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;本地cookies无效，需重新登陆&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">_start_login</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        该方法是登陆的第一步，先post登陆邮箱和密码</span>
+<span class="sd">        成功的话，会进入验证二维码页面</span>
+
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;User-Agent&#39;</span><span class="p">:</span> <span class="s1">&#39;Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Origin&#39;</span><span class="p">:</span> <span class="s1">&#39;https://mp.weixin.qq.com&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Pragma&#39;</span><span class="p">:</span> <span class="s1">&#39;no-cache&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Cache-Control&#39;</span><span class="p">:</span> <span class="s1">&#39;no-cache&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;X-Requested-With&#39;</span><span class="p">:</span> <span class="s1">&#39;XMLHttpRequest&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/x-www-form-urlencoded;charset=&quot;UTF-8&quot;&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Accept&#39;</span><span class="p">:</span> <span class="s1">&#39;*/*&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;Referer&#39;</span><span class="p">:</span> <span class="s1">&#39;https://mp.weixin.qq.com/&#39;</span><span class="p">}</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;username&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">email</span><span class="p">,</span>
+                <span class="s1">&#39;pwd&#39;</span><span class="p">:</span> <span class="n">md5</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">passowrd</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">16</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)),</span>
+                <span class="s1">&#39;imgcode&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;f&#39;</span><span class="p">:</span> <span class="s1">&#39;json&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;token&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;lang&#39;</span><span class="p">:</span> <span class="s1">&#39;zh_CN&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;ajax&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+
+        <span class="n">api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_collections</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">,</span> <span class="s1">&#39;start login&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">api</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;开始模拟登陆 账号 </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">email</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="n">base_resp</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;base_resp&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">base_resp</span> <span class="ow">and</span> <span class="n">base_resp</span><span class="p">[</span><span class="s1">&#39;ret&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">200023</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">InvalidAccountOrPassword</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;账号：</span><span class="si">{self.email}</span><span class="s2"> 或者 密码：</span><span class="si">{self.passowrd}</span><span class="s2"> 不正确&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">base_resp</span> <span class="ow">and</span> <span class="n">base_resp</span><span class="p">[</span><span class="s1">&#39;ret&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">200008</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_verify_qrcode</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">base_resp</span> <span class="ow">and</span> <span class="n">base_resp</span><span class="p">[</span><span class="s1">&#39;ret&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_verify_qrcode</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_verify_qrcode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">headers</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        获取验证二维码，显示后监控是否扫码</span>
+
+<span class="sd">        :param headers: 请求报文</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;{&quot;base_resp&quot;:{&quot;err_msg&quot;:&quot;ok&quot;,&quot;ret&quot;:0},&quot;redirect_url&quot;:&quot;/cgi-bin/bizlogin?action=validate&amp;lang=zh_CN&amp;account=nnjz%40jiexiaochina.com&quot;}&quot;&quot;&quot;</span>
+        <span class="n">redirect_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_collections</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">,</span> <span class="s1">&#39;redirect url&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">email</span><span class="p">))</span>
+        <span class="c1"># 跳转二维码扫码页面</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;跳转二维码扫码页面&quot;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">redirect_url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+
+        <span class="c1"># 获取二维码图片，显示后等待扫码</span>
+        <span class="n">qrcode_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_collections</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">,</span> <span class="s1">&#39;qrcode url&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">999</span><span class="p">))</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">qrcode_url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+
+        <span class="n">image</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">))</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;已经获取二维码图片并显示，等待扫码&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_scan_qrcode</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_check_scan_qrcode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        不断地检测是否扫码并确认登陆了</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;开始检查二维码是否被扫和是否已确认&quot;</span><span class="p">)</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_login</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;User-Agent&#39;</span><span class="p">:</span> <span class="s1">&#39;Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Origin&#39;</span><span class="p">:</span> <span class="s1">&#39;https://mp.weixin.qq.com&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Pragma&#39;</span><span class="p">:</span> <span class="s1">&#39;no-cache&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Cache-Control&#39;</span><span class="p">:</span> <span class="s1">&#39;no-cache&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;X-Requested-With&#39;</span><span class="p">:</span> <span class="s1">&#39;XMLHttpRequest&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/x-www-form-urlencoded;charset=&quot;UTF-8&quot;&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Accept&#39;</span><span class="p">:</span> <span class="s1">&#39;*/*&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;Referer&#39;</span><span class="p">:</span> <span class="s1">&#39;https://mp.weixin.qq.com/&#39;</span><span class="p">}</span>
+            <span class="n">check_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_collections</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">,</span> <span class="s1">&#39;check login&#39;</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">check_url</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+
+            <span class="n">status</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;status&#39;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;尚未扫码&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;已经扫码了，等待确认&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">status</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;已完成扫码，开始post登陆到微信后台的请求&quot;</span><span class="p">)</span>
+                <span class="c1"># 确认完成扫码并确认后，post登陆到微信后台的请求</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_post_login</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_post_login</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        扫码确认后方可进行这步操作</span>
+
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Host&#39;</span><span class="p">:</span> <span class="s1">&#39;mp.weixin.qq.com&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;Connection&#39;</span><span class="p">:</span> <span class="s1">&#39;keep-alive&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;Origin&#39;</span><span class="p">:</span> <span class="s1">&#39;https://mp.weixin.qq.com&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;X-Requested-With&#39;</span><span class="p">:</span> <span class="s1">&#39;XMLHttpRequest&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;User-Agent&#39;</span><span class="p">:</span> <span class="s1">&#39;Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;Content-Type&#39;</span><span class="p">:</span> <span class="s1">&#39;application/x-www-form-urlencoded; charset=UTF-8&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;Accept&#39;</span><span class="p">:</span> <span class="s1">&#39;*/*&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;Referer&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_collections</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">,</span> <span class="s1">&#39;redirect url&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">urllib</span><span class="o">.</span><span class="n">parse</span><span class="o">.</span><span class="n">quote</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">email</span><span class="p">)),</span>
+                   <span class="s1">&#39;Accept-Encoding&#39;</span><span class="p">:</span> <span class="s1">&#39;gzip, deflate, br&#39;</span><span class="p">,</span>
+                   <span class="s1">&#39;Accept-Language&#39;</span><span class="p">:</span> <span class="s1">&#39;zh-CN,zh;q=0.8&#39;</span><span class="p">,</span> <span class="p">}</span>
+
+        <span class="n">login_url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_collections</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">,</span> <span class="s1">&#39;post login&#39;</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;lang&quot;</span><span class="p">:</span> <span class="s2">&quot;zh_CN&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;f&quot;</span><span class="p">:</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;ajax&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">}</span>
+
+        <span class="c1"># post登陆</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">login_url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Post登陆成功&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Post登陆失败&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="c1"># post登陆之后，需要获取token，这个token是调用其他接口的唯一凭证</span>
+        <span class="c1"># 因为已经登录了，随便访问首页都能得到token，通过正则提取即可</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;https://mp.weixin.qq.com/&#39;</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+        <span class="n">find_token</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;&amp;token=(\d+)&#39;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">find_token</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="n">find_token</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_login</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_cookie</span><span class="p">:</span>
+            <span class="c1"># 保存登陆cookies,避免重复登陆</span>
+            <span class="n">cookies</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">cookies</span><span class="o">.</span><span class="n">get_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">cookies</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;cookies.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">cookies</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;保存登陆cookies,避免重复登陆&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;获取token：</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Wechat.search_account"><a class="viewcode-back" href="../../api.html#wechat_mp.Wechat.search_account">[文档]</a>    <span class="k">def</span> <span class="nf">search_account</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name_or_id</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        根据公众号名称或者ID查询公众号列表</span>
+
+<span class="sd">        :param name_or_id: 公众号的名称或者微信ID/原始ID</span>
+<span class="sd">        :type name_or_id: str</span>
+<span class="sd">        :param limit: 获取多少条查询记录</span>
+<span class="sd">        :type limit: int</span>
+<span class="sd">        :return:  :class:`OfficalAccount &lt;wechat_mp.models.OfficalAccount&gt;` 对象列表</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">search_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_collections</span><span class="p">(</span><span class="s1">&#39;search&#39;</span><span class="p">,</span> <span class="s1">&#39;search account&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">999</span><span class="p">))</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;query&#39;</span><span class="p">:</span> <span class="n">name_or_id</span><span class="p">,</span>
+            <span class="s1">&#39;begin&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;count&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">search_api</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">accounts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">base_resp</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;base_resp&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">base_resp</span><span class="p">[</span><span class="s1">&#39;ret&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">200013</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;请求频率出现限制，暂停60秒&quot;</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">60</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">search_account</span><span class="p">(</span><span class="n">name_or_id</span><span class="p">)</span>
+
+        <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">begin</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">base_resp</span><span class="p">[</span><span class="s1">&#39;ret&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;total&#39;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;一共有</span><span class="si">%s</span><span class="s2">个公众号,限制获取</span><span class="si">%s</span><span class="s2">个公众号&quot;</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span><span class="n">limit</span><span class="p">)</span>
+        <span class="n">out_of_limit</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">while</span> <span class="n">begin</span> <span class="o">&lt;</span> <span class="n">total</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;正在获取第</span><span class="si">%s</span><span class="s2">到第</span><span class="si">%s</span><span class="s2">个&quot;</span><span class="p">,</span> <span class="n">begin</span><span class="p">,</span><span class="n">begin</span> <span class="o">+</span> <span class="mi">5</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">out_of_limit</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">page_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_account_pages</span><span class="p">(</span><span class="n">search_api</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">account</span> <span class="ow">in</span> <span class="n">page_result</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">limit</span> <span class="ow">and</span> <span class="n">limit</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">accounts</span><span class="p">):</span>
+                    <span class="n">out_of_limit</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+                <span class="n">accounts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">account</span><span class="p">)</span>
+            <span class="n">begin</span> <span class="o">+=</span> <span class="mi">5</span>
+            <span class="n">params</span><span class="p">[</span><span class="s1">&#39;begin&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">begin</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">OfficalAccount</span><span class="p">(</span><span class="n">account</span><span class="p">,</span><span class="bp">self</span><span class="p">)</span> <span class="k">for</span> <span class="n">account</span> <span class="ow">in</span> <span class="n">accounts</span><span class="p">]</span></div>
+
+    <span class="k">def</span> <span class="nf">_search_account_pages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">api</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        根据页数不断地进行请求</span>
+
+<span class="sd">        :param api: 请求的API</span>
+<span class="sd">        :param params: 包含起始的参数</span>
+<span class="sd">        :return: 账号字典列表</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">accounts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">api</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;base_resp&#39;</span><span class="p">][</span><span class="s1">&#39;ret&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">account_list</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;list&#39;</span><span class="p">)</span>
+            <span class="n">accounts</span> <span class="o">+=</span> <span class="n">account_list</span>
+        <span class="k">return</span> <span class="n">accounts</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Wechat_mp</a></h1>
+
+
+
+
+
+
+
+
+<h3>导航</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">开发者接口</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">模块代码</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>快速搜索</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="转向" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Roger Lee.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.8</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

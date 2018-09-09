@@ -1,0 +1,256 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>models &#8212; Wechat_mp 0.1 文档</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>models 源代码</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">@version: python3.6</span>
+<span class="sd">@author: &quot;Roger Lee&quot;</span>
+<span class="sd">@license: MIT Licence </span>
+<span class="sd">@contact: 704480843@qq.com</span>
+<span class="sd">@file: models.py</span>
+<span class="sd">@time: 2018/9/8 11:16</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">wechat_mp.utils</span> <span class="k">import</span> <span class="n">from_timestamp_to_datetime_string</span>
+<span class="kn">import</span> <span class="nn">openpyxl</span>
+<span class="kn">from</span> <span class="nn">wechat_mp.exceptions</span> <span class="k">import</span> <span class="n">ArticlesNotObtainError</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;wechat_mp&#39;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">OfficalAccount</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    微信公众号的对象</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_dict</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">client</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fakeid</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fakeid&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nickname</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nickname&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alias</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;alias&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">round_head_img</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;round_head_img&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">service_type</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;service_type&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">article_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_articles</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">articles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">title_contain</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        获取公众号的历史群发图文</span>
+
+<span class="sd">        :param title_contain: 图文标题包含的字符串</span>
+<span class="sd">        :param limit: 限制获取的图文数量(因为有些公众号有很多图文，所以有必要限制)</span>
+<span class="sd">        :return: 图文对象列表</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">search_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">api_collections</span><span class="p">(</span><span class="s1">&#39;search&#39;</span><span class="p">,</span> <span class="s1">&#39;article list&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">token</span><span class="p">,</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">999</span><span class="p">))</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;begin&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;count&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+            <span class="s1">&#39;query&#39;</span><span class="p">:</span> <span class="n">title_contain</span><span class="p">,</span>
+            <span class="s1">&#39;fakeid&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fakeid</span>
+        <span class="p">}</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">search_api</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">base_resp</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;base_resp&#39;</span><span class="p">)</span>
+        <span class="n">articles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">begin</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">base_resp</span><span class="p">[</span><span class="s1">&#39;ret&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">total</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;app_msg_cnt&#39;</span><span class="p">)</span>
+        <span class="n">out_of_limit</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;一共</span><span class="si">%s</span><span class="s2">篇文章，已设置获取个数:</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">total</span><span class="p">,</span><span class="n">limit</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="n">begin</span> <span class="o">&lt;</span> <span class="n">total</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">out_of_limit</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">page_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_article_pages</span><span class="p">(</span><span class="n">search_api</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">article</span> <span class="ow">in</span> <span class="n">page_result</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">limit</span> <span class="ow">and</span> <span class="n">limit</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">articles</span><span class="p">):</span>
+                    <span class="n">out_of_limit</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+                <span class="n">articles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">article</span><span class="p">)</span>
+            <span class="n">begin</span> <span class="o">+=</span> <span class="mi">5</span>
+            <span class="n">params</span><span class="p">[</span><span class="s1">&#39;begin&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">begin</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="n">article_objects</span> <span class="o">=</span> <span class="p">[</span><span class="n">Article</span><span class="p">(</span><span class="n">article</span><span class="p">)</span> <span class="k">for</span> <span class="n">article</span> <span class="ow">in</span> <span class="n">articles</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_articles</span> <span class="o">=</span> <span class="n">article_objects</span>
+        <span class="k">return</span> <span class="n">article_objects</span>
+
+    <span class="k">def</span> <span class="nf">_search_article_pages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">search_api</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        根据页数不断地进行请求</span>
+
+<span class="sd">        :param api: 请求的API</span>
+<span class="sd">        :param params: 包含起始的参数</span>
+<span class="sd">        :return: 文章字典列表</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">articles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">search_api</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">response</span><span class="p">[</span><span class="s1">&#39;base_resp&#39;</span><span class="p">][</span><span class="s1">&#39;ret&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">app_msg_list</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;app_msg_list&#39;</span><span class="p">)</span>
+            <span class="n">articles</span> <span class="o">+=</span> <span class="n">app_msg_list</span>
+        <span class="k">return</span> <span class="n">articles</span>
+
+    <span class="k">def</span> <span class="nf">save_articles_as_excel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        将该公众号搜索出来的历史群发图文保存到Excel中</span>
+
+<span class="sd">        :param filename: 文件名。默认添加了.xlsx后缀</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_articles</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ArticlesNotObtainError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;图文列表尚未获取，请先调用</span><span class="si">{self.__class__.__name__}</span><span class="s2">的articles方法&quot;</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">write_header</span><span class="p">(</span><span class="n">sheet</span><span class="p">):</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;标题&quot;</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;摘要&quot;</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;链接&quot;</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;更新时间&quot;</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;aid&quot;</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;appmsgid&quot;</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;图文序号&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">sheet</span>
+
+        <span class="k">if</span> <span class="s1">&#39;xlsx&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">+=</span> <span class="s1">&#39;.xlsx&#39;</span>
+        <span class="n">wb</span> <span class="o">=</span> <span class="n">openpyxl</span><span class="o">.</span><span class="n">Workbook</span><span class="p">()</span>
+        <span class="n">wb</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">wb</span> <span class="o">=</span> <span class="n">openpyxl</span><span class="o">.</span><span class="n">load_workbook</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="n">sheet</span> <span class="o">=</span> <span class="n">wb</span><span class="p">[</span><span class="n">wb</span><span class="o">.</span><span class="n">sheetnames</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">sheet</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="s2">&quot;图文列表&quot;</span>
+        <span class="n">sheet</span> <span class="o">=</span> <span class="n">write_header</span><span class="p">(</span><span class="n">sheet</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">article</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_articles</span><span class="p">,</span><span class="mi">2</span><span class="p">):</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">article</span><span class="o">.</span><span class="n">title</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">article</span><span class="o">.</span><span class="n">digest</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">article</span><span class="o">.</span><span class="n">link</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">article</span><span class="o">.</span><span class="n">update_time</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">article</span><span class="o">.</span><span class="n">aid</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">article</span><span class="o">.</span><span class="n">appmsgid</span><span class="p">)</span>
+            <span class="n">sheet</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">article</span><span class="o">.</span><span class="n">itemidx</span><span class="p">)</span>
+
+        <span class="n">wb</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s2">&quot;&lt;</span><span class="si">{self.__class__.__name__}</span><span class="s2">: </span><span class="si">{self.nickname}</span><span class="s2">&gt;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s2">&quot;&lt;</span><span class="si">{self.__class__.__name__}</span><span class="s2">: </span><span class="si">{self.nickname}</span><span class="s2">&gt;&quot;</span>
+
+<div class="viewcode-block" id="Article"><a class="viewcode-back" href="../api.html#models.Article">[文档]</a><span class="k">class</span> <span class="nc">Article</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    微信图文对象</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">raw_dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aid</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;aid&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">appmsgid</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;appmsgid&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cover</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cover&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">digest</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;digest&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">itemidx</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;itemidx&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">link</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;link&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;title&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span> <span class="o">=</span> <span class="n">raw_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;update_time&#39;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">update_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">from_timestamp_to_datetime_string</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s2">&quot;&lt;</span><span class="si">{self.__class__.__name__}</span><span class="s2">: </span><span class="si">{self.title}</span><span class="s2">&gt;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s2">&quot;&lt;</span><span class="si">{self.__class__.__name__}</span><span class="s2">: </span><span class="si">{self.title}</span><span class="s2">&gt;&quot;</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Wechat_mp</a></h1>
+
+
+
+
+
+
+
+
+<h3>导航</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">开发者接口</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">模块代码</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>快速搜索</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="转向" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Roger Lee.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.8</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
