@@ -3,7 +3,7 @@
 微信后台有一些功能是API不提供的，例如以下三个：
 - [x] 根据公众号名称搜索公众号，并查看其群发过的图文
 - [ ] 根据关键词搜索相关的群发图文
-- [ ] 导出公众号选择的模板行业库中的所有模板示例
+- [x] 导出公众号选择的模板行业库中的所有模板示例
 
 # Python版本
 - Python 3.6.x
@@ -78,6 +78,34 @@ Post登陆成功
 >>> my_account.save_articles_as_excel("编程这件事儿")
 ```
 ![文件内容](https://user-images.githubusercontent.com/18111035/45262013-47c80e80-b440-11e8-86df-12ad6c6ab787.png)
+
+### 3. 导出公众号选择的模板行业库中的所有模板示例
+##### 目前支持：
+- 获取公众号目前的模板行业里的所有模板
+- 可以获取具体示例
+##### 目前不支持
+- 导出到excel文件
+
+##### 使用方法
+```python
+>>> templates = client.get_templates(threads=20, detail=True) # threads是使用多少个线程跑，detail是否获取具体示例
+>>> templates[0] # 查看第一个模板
+
+{'class1': 'IT科技',
+ 'class2': '互联网|电子商务',
+ 'id': 'OPENTM228356100',
+ 'person_used': 46,
+ 'title': '创建简历成功提醒',
+ 'detail': {'class1': 'IT科技',
+  'class2': '互联网|电子商务',
+  'content': '{{first.DATA}}\n简历名称：{{keyword1.DATA}}\n发布时间：{{keyword2.DATA}}\n{{remark.DATA}}',
+  'example': '您在58同城上创建简历成功\r\n简历名称：财务主管\r\n发布时间：2014-07-27\r\n若非本人操作请联系客服中心进行修改',
+  'id': 'OPENTM228356100',
+  'modify_time': '2015-01-15 16:47:52',
+  'person_used': 46,
+  'title': '创建简历成功提醒'}}
+
+```
 
 # 作者公众号
 ### 编程这件事儿

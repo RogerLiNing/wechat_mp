@@ -8,6 +8,10 @@ requests = "*"
 pillow = "*"
 openpyxl = "*"
 sphinx = "*"
+"beautifulsoup4" = "*"
+threadpool = "*"
+tqdm = "*"
+pip = "*"
 
 [dev-packages]
 

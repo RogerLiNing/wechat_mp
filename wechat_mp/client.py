@@ -20,6 +20,8 @@ import time
 import json
 import logging
 import os
+from tqdm import tqdm
+from threadpool import *
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s [%(threadName)s:%(thread)d] [%(name)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s')
@@ -29,7 +31,6 @@ console.setLevel(logging.INFO)
 logger = logging.getLogger('wechat_mp')
 logger.addHandler(console)
 logger.propagate = False
-
 
 
 class Wechat:
@@ -78,7 +79,11 @@ class Wechat:
             },
             'search': {
                 'search account': '/cgi-bin/searchbiz?action=search_biz&token={0}&lang=zh_CN&f=json&ajax=1&random={1}',
-                'article list':'/cgi-bin/appmsg?token={0}&lang=zh_CN&f=json&ajax=1&random={1}&action=list_ex&type=9'
+                'article list': '/cgi-bin/appmsg?token={0}&lang=zh_CN&f=json&ajax=1&random={1}&action=list_ex&type=9'
+            },
+            'template': {
+                'get template list': '/advanced/tmplmsg?action=tmpl_store&t=tmplmsg/store&token={0}&lang=zh_CN&begin=0&count={1}',
+                'get single template detail': '/advanced/tmplmsg?action=tmpl_preview&t=tmplmsg/preview&id={0}&token={1}&lang=zh_CN'
             }
         }
 
@@ -296,10 +301,10 @@ class Wechat:
         if base_resp['ret'] == 0:
             total = response.get('total')
 
-        logger.info("一共有%s个公众号,限制获取%s个公众号", total,limit)
+        logger.info("一共有%s个公众号,限制获取%s个公众号", total, limit)
         out_of_limit = False
         while begin < total:
-            logger.info("正在获取第%s到第%s个", begin,begin + 5)
+            logger.info("正在获取第%s到第%s个", begin, begin + 5)
             if out_of_limit:
                 break
             page_result = self._search_account_pages(search_api, params)
@@ -312,7 +317,7 @@ class Wechat:
             params['begin'] = begin
             time.sleep(3)
 
-        return [OfficalAccount(account,self) for account in accounts]
+        return [OfficalAccount(account, self) for account in accounts]
 
     def _search_account_pages(self, api, params):
         """
@@ -328,3 +333,192 @@ class Wechat:
             account_list = response.get('list')
             accounts += account_list
         return accounts
+
+    def get_templates(self, threads=20, detail=True):
+        """
+        获取当前公众号的模板消息
+
+        :param threads: 线程数
+        :param detail: 是否需要获取模板详情
+        :return:
+        """
+        headers = {
+            "Host": "mp.weixin.qq.com",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36")
+        }
+        api = self.api_collections('template', 'get template list').format(self.token, 20)
+
+        # 先获取所有模板的总数
+        response = self.session.get(api, headers=headers)
+
+        regx = re.compile('data : (.*?\d*}})')
+        data_list = re.findall(regx, response.content.decode('utf-8'))
+
+        if not data_list:
+            return
+
+        total_templates = eval(data_list[0])['store_tmpl_info']['total_count']
+
+        # 根据总数改变请求URL参数count，这样就可以一下子返回所有的模板了
+        api = self.api_collections('template', 'get template list').format(self.token, total_templates)
+        response = self.session.get(api, headers=headers)
+        data_list = re.findall(regx, response.content.decode('utf-8'))
+        if not data_list:
+            return
+        eval_data = eval(data_list[0])
+
+        templates = eval_data['store_tmpl_info']['store_tmpl']
+        template_list = []
+
+        if detail:
+            self._get_all_template_details(templates, threads=threads)
+            return self.detail_templates
+        else:
+            template_list = self._get_template_list_with_code(templates)
+            return template_list
+
+    def _get_all_template_details(self, templates, threads):
+        self.detail_templates = []
+        pool = ThreadPool(threads)
+        bar = tqdm(total=len(templates))
+        bar.set_description("进度条")
+
+        request_list = []
+        for template in templates:
+            info_dict = {'template': template, 'bar': bar}
+            request = makeRequests(self._get_template_details, [info_dict])
+            request_list.append(request[0])
+
+        for req in request_list:
+            pool.putRequest(req)
+
+        pool.wait()
+        bar.close()
+
+    def _get_template_details(self, info_dict):
+        template = info_dict['template']
+        template_id = template['id']
+        bar = info_dict['bar']
+        headers = {
+            "Host": "mp.weixin.qq.com",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36")
+        }
+        api = self.api_collections('template', 'get single template detail').format(template_id, self.token)
+        response = self.session.get(api, headers=headers)
+        html = response.content.decode('utf-8')
+        regx = re.compile(r'tmplmsg: (.*)')
+        detail_result = re.findall(regx, html)
+        if not detail_result:
+            return
+
+        detail_dict = eval(detail_result[0])
+        bar.update(1)
+        template['detail'] = detail_dict
+
+        self.detail_templates.append(template)
+
+    def _get_template_list_with_code(self, templates):
+        template_list = []
+
+        # 循环查询行业代码，并生成新的字典放到新的列表template_list
+        for template in templates:
+            class1 = template['class1'].strip()
+            class2 = template['class2'].strip()
+            code = self._check_industry_code(class1, class2)
+            template_dict = dict(
+                id=template['id'],
+                title=template['title'],
+                industry_code=code
+            )
+            template_list.append(template_dict)
+        return template_list
+
+    def _check_industry_code(self, class1, class2):
+        code = ''
+
+        if class1 == "IT科技" and class2 == "互联网|电子商务":
+            code = 1
+        elif class1 == "IT科技" and class2 == "IT软件与服务":
+            code = 2
+        elif class1 == "IT科技" and class2 == "IT硬件与设备":
+            code = 3
+        elif class1 == "IT科技" and class2 == "电子技术":
+            code = 4
+        elif class1 == "IT科技" and class2 == "通信与运营商":
+            code = 5
+        elif class1 == "IT科技" and class2 == "网络游戏":
+            code = 6
+        elif class1 == "金融业" and class2 == "银行":
+            code = 7
+        elif class1 == "金融业" and class2 == "证券|基金|理财|信托":
+            code = 8
+        elif class1 == "金融业" and class2 == "保险":
+            code = 9
+        elif class1 == "餐饮" and class2 == "餐饮":
+            code = 10
+        elif class1 == "酒店旅游" and class2 == "酒店":
+            code = 11
+        elif class1 == "酒店旅游" and class2 == "旅游":
+            code = 12
+        elif class1 == "运输与仓储" and class2 == "快递":
+            code = 13
+        elif class1 == "运输与仓储" and class2 == "物流":
+            code = 14
+        elif class1 == "运输与仓储" and class2 == "仓储":
+            code = 15
+        elif class1 == "教育" and class2 == "培训":
+            code = 16
+        elif class1 == "教育" and class2 == "院校":
+            code = 17
+        elif class1 == "政府与公共事业" and class2 == "学术科研":
+            code = 18
+        elif class1 == "政府与公共事业" and class2 == "交警":
+            code = 19
+        elif class1 == "政府与公共事业" and class2 == "博物馆":
+            code = 20
+        elif class1 == "政府与公共事业" and class2 == "政府|公共事业|非盈利机构":
+            code = 21
+        elif class1 == "医疗护理" and class2 == "医药医疗":
+            code = 22
+        elif class1 == "医疗护理" and class2 == "护理美容":
+            code = 23
+        elif class1 == "医疗护理" and class2 == "保健与卫生":
+            code = 24
+        elif class1 == "交通工具" and class2 == "汽车相关":
+            code = 25
+        elif class1 == "交通工具" and class2 == "摩托车相关":
+            code = 26
+        elif class1 == "交通工具" and class2 == "火车相关":
+            code = 27
+        elif class1 == "交通工具" and class2 == "飞机相关":
+            code = 28
+        elif class1 == "房地产" and class2 == "房地产|建筑":
+            code = 29
+        elif class1 == "房地产" and class2 == "物业":
+            code = 30
+        elif class1 == "消费品" and class2 == "消费品":
+            code = 31
+        elif class1 == "商业服务" and class2 == "法律":
+            code = 32
+        elif class1 == "商业服务" and class2 == "广告|会展":
+            code = 33
+        elif class1 == "商业服务" and class2 == "中介服务":
+            code = 34
+        elif class1 == "商业服务" and class2 == "检测|认证":
+            code = 35
+        elif class1 == "商业服务" and class2 == "会计|审计":
+            code = 36
+        elif class1 == "文体娱乐" and class2 == "文化|传媒":
+            code = 37
+        elif class1 == "文体娱乐" and class2 == "体育":
+            code = 38
+        elif class1 == "文体娱乐" and class2 == "娱乐休闲":
+            code = 39
+        elif class1 == "印刷" and class2 == "打印|印刷":
+            code = 40
+        elif class1 == "其他" and class2 == "其他":
+            code = 41
+
+        return code
