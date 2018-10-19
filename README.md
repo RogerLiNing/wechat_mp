@@ -19,8 +19,10 @@ $ pipenv shell
 $ ipython
 ```
 # 如果pipenv update有问题
+```
 $ pipenv shell
 $ pip install -r requirements.txt
+```
 
 # 使用方法
 ### 1. 查询某个公众号的历史群发图文
