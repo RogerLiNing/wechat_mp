@@ -7,11 +7,16 @@
 
 # Python版本
 - Python 3.6.x
+- 如果是3.7，需要你去Pipfile文件中，将python_version改成3.7。
 
 # 初始化项目
 ```
-$ pip install pipenv
+$ git clone https://github.com/RogerLiNing/wechat_mp.git
+$ cd wechat_mp
+$ pip3 install pipenv
 $ pipenv update
+$ pipenv shell
+$ ipython
 ```
 
 # 使用方法
