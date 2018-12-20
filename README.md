@@ -90,6 +90,7 @@ Post登陆成功
 ![文件内容](https://user-images.githubusercontent.com/18111035/45262013-47c80e80-b440-11e8-86df-12ad6c6ab787.png)
 
 ### 3. 导出公众号选择的模板行业库中的所有模板示例
+注意：认证的服务号才能使用该接口
 ##### 目前支持：
 - 获取公众号目前的模板行业里的所有模板
 - 可以获取具体示例
@@ -118,5 +119,5 @@ Post登陆成功
 ```
 
 # 作者公众号
-### 编程这件事儿
-![编程这件事儿](https://mp.weixin.qq.com/mp/qrcode?scene=10000004&size=102&__biz=MzU1MzEyMzYxMA==&mid=2247483679&idx=1&sn=b36c581c3639a7da40427adc88a7140f&send_time=)
+### Python阅读空间
+![Python阅读空间](https://mp.weixin.qq.com/mp/qrcode?scene=10000004&size=102&__biz=MzU1MzEyMzYxMA==&mid=2247483679&idx=1&sn=b36c581c3639a7da40427adc88a7140f&send_time=)

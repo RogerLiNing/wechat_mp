@@ -82,8 +82,8 @@ class Wechat:
                 'article list': '/cgi-bin/appmsg?token={0}&lang=zh_CN&f=json&ajax=1&random={1}&action=list_ex&type=9'
             },
             'template': {
-                'get template list': '/advanced/tmplmsg?action=tmpl_store&t=tmplmsg/store&token={0}&lang=zh_CN&begin=0&count={1}',
-                'get single template detail': '/advanced/tmplmsg?action=tmpl_preview&t=tmplmsg/preview&id={0}&token={1}&lang=zh_CN'
+                'get single template detail': '/advanced/tmplmsg?action=tmpl_preview&t=tmplmsg/preview&id={0}&token={1}&lang=zh_CN',
+                'get template list xhr':'/advanced/tmplmsg?action=tmpl_store&t=tmplmsg/store&token={0}&lang=zh_CN'
             }
         }
 
@@ -347,26 +347,35 @@ class Wechat:
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36")
         }
-        api = self.api_collections('template', 'get template list').format(self.token, 20)
+        api = self.api_collections('template', 'get template list xhr').format(self.token)
+        headers["Referer"] = api
+
+        params = {
+            'begin':0,
+            'count':20,
+            'keyword':'',
+            'f':'json',
+            'ajax':1
+        }
 
         # 先获取所有模板的总数
-        response = self.session.get(api, headers=headers)
+        response = self.session.get(api, params=params, headers=headers)
 
-        regx = re.compile('data : (.*?\d*}})')
-        data_list = re.findall(regx, response.content.decode('utf-8'))
+        data_str = response.json().get("data")
 
-        if not data_list:
-            return
+        total_templates = eval(data_str)['store_tmpl_info']['total_count']
 
-        total_templates = eval(data_list[0])['store_tmpl_info']['total_count']
+        params['count'] = int(total_templates)
+        response = self.session.get(api, params=params, headers=headers)
+        if response.status_code == 200:
+            if response.json().get('base_resp', ""):
+                if response.json().get("base_resp").get("err_msg") != "ok":
+                    return
 
-        # 根据总数改变请求URL参数count，这样就可以一下子返回所有的模板了
-        api = self.api_collections('template', 'get template list').format(self.token, total_templates)
-        response = self.session.get(api, headers=headers)
-        data_list = re.findall(regx, response.content.decode('utf-8'))
-        if not data_list:
-            return
-        eval_data = eval(data_list[0])
+        data_str = response.json().get("data")
+
+
+        eval_data = eval(data_str)
 
         templates = eval_data['store_tmpl_info']['store_tmpl']
         template_list = []
