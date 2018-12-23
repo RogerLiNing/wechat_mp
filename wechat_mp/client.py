@@ -7,21 +7,24 @@
 @file: client.py
 @time: 2018/9/8 11:16
 """
-from wechat_mp.utils import *
-from wechat_mp.exceptions import *
-from wechat_mp.models import *
 import re
 import random
-import requests
-import urllib.parse
-from PIL import Image
-from io import BytesIO
 import time
 import json
 import logging
 import os
+import urllib.parse
+from io import BytesIO
+
+from PIL import Image
 from tqdm import tqdm
 from threadpool import *
+import requests
+
+from wechat_mp.utils import *
+from wechat_mp.exceptions import *
+from wechat_mp.models import *
+
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s [%(threadName)s:%(thread)d] [%(name)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s')
@@ -45,19 +48,15 @@ class Wechat:
     :type enable_cookies: bool
     """
 
-    def __init__(self, email, password, enable_cookies=False):
+    def __init__(self, email, password):
         self.email = email
         self.passowrd = password
-        self.enable_cookie = enable_cookies
+
         self._base_url = 'https://mp.weixin.qq.com'
         self._is_login = False
         self._token = None
         self.session = requests.Session()
-        if enable_cookies:
-            if not self._check_cookies():
-                self._start_login()
-        else:
-            self._start_login()
+        self._start_login()
 
     def api_collections(self, name, path):
         """
@@ -79,55 +78,17 @@ class Wechat:
             },
             'search': {
                 'search account': '/cgi-bin/searchbiz?action=search_biz&token={0}&lang=zh_CN&f=json&ajax=1&random={1}',
-                'article list': '/cgi-bin/appmsg?token={0}&lang=zh_CN&f=json&ajax=1&random={1}&action=list_ex&type=9'
+                'article list': '/cgi-bin/appmsg?token={0}&lang=zh_CN&f=json&ajax=1&random={1}&action=list_ex&type=9',
+                'search article': '/cgi-bin/operate_appmsg?sub=check_appmsg_copyright_stat',
+                'search page':'/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={0}&lang=zh_CN'
             },
             'template': {
                 'get single template detail': '/advanced/tmplmsg?action=tmpl_preview&t=tmplmsg/preview&id={0}&token={1}&lang=zh_CN',
-                'get template list xhr':'/advanced/tmplmsg?action=tmpl_store&t=tmplmsg/store&token={0}&lang=zh_CN'
+                'get template list xhr': '/advanced/tmplmsg?action=tmpl_store&t=tmplmsg/store&token={0}&lang=zh_CN'
             }
         }
 
         return self._base_url + apis[name][path]
-
-    def _check_cookies(self):
-        """
-        检查本地保存的cookies是否有效
-
-        :return: bool
-        """
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36',
-            'Origin': 'https://mp.weixin.qq.com',
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-Type': 'application/x-www-form-urlencoded;charset="UTF-8"',
-            'Accept': '*/*',
-            'Referer': 'https://mp.weixin.qq.com/'}
-        file_exist = os.path.exists("cookies.txt")
-        if not file_exist:
-            f = open('cookies.txt', 'w')
-            f.close()
-            return False
-
-        with open('cookies.txt', 'r') as f:
-            try:
-                cookies = json.load(f)
-                for k, v in cookies.items():
-                    self.session.cookies.set(k, v)
-            except json.decoder.JSONDecodeError:
-                return False
-
-        response = self.session.get('https://mp.weixin.qq.com/', cookies=cookies, headers=headers)
-        find_token = re.findall(r'&token=(\d+)', response.text)
-        if find_token:
-            self._is_login = True
-            self.token = find_token[0]
-            logger.info("本地cookies有效，无需再次登陆")
-            return True
-        else:
-            logger.info("本地cookies无效，需重新登陆")
-            return False
 
     def _start_login(self):
         """
@@ -156,6 +117,7 @@ class Wechat:
 
         api = self.api_collections('login', 'start login')
         response = self.session.post(api, headers=headers, data=data)
+
         logger.info("开始模拟登陆 账号 %s", self.email)
         if response.status_code == 200:
             base_resp = response.json().get('base_resp')
@@ -182,7 +144,6 @@ class Wechat:
         # 获取二维码图片，显示后等待扫码
         qrcode_url = self.api_collections('login', 'qrcode url').format(random.randint(200, 999))
         response = self.session.get(qrcode_url, headers=headers)
-
         image = Image.open(BytesIO(response.content))
         image.show()
         logger.info("已经获取二维码图片并显示，等待扫码")
@@ -259,18 +220,9 @@ class Wechat:
             self._is_login = True
         else:
             return
-
-        if self.enable_cookie:
-            # 保存登陆cookies,避免重复登陆
-            cookies = {}
-            for k, v in self.session.cookies.get_dict().items():
-                cookies[k] = v
-            with open('cookies.txt', 'w') as file:
-                file.write(json.dumps(cookies))
-            logger.info("保存登陆cookies,避免重复登陆")
         logger.info("获取token：%s", self.token)
 
-    def search_account(self, name_or_id, limit=None):
+    def search_account(self, name_or_id, limit=0):
         """
         根据公众号名称或者ID查询公众号列表
 
@@ -296,27 +248,36 @@ class Wechat:
             time.sleep(60)
             return self.search_account(name_or_id)
 
-        total = 0
         begin = 0
-        if base_resp['ret'] == 0:
-            total = response.get('total')
 
-        logger.info("一共有%s个公众号,限制获取%s个公众号", total, limit)
-        out_of_limit = False
-        while begin < total:
-            logger.info("正在获取第%s到第%s个", begin, begin + 5)
-            if out_of_limit:
-                break
+        total = response.get('total')
+        if limit == 0:
+            logger.info("一共搜到%s个公众号,已设置不限制获取数量", total)
+            bar = tqdm(total=total)
+            limit = total
+        else:
+            logger.info("一共搜到%s个公众号,已设置限制获取前%s个公众号", total, limit)
+            bar = tqdm(total=limit)
+
+        bar.set_description("进度条")
+        reach_limit = False
+
+        while not reach_limit:
+
             page_result = self._search_account_pages(search_api, params)
+            if not page_result:
+                reach_limit = True
             for account in page_result:
-                if limit and limit < len(accounts):
-                    out_of_limit = True
-                    break
-                accounts.append(account)
+                if len(accounts) >= limit or len(accounts) > total:
+                    reach_limit = True
+                else:
+                    accounts.append(account)
+                    bar.update(1)
+
             begin += 5
             params['begin'] = begin
             time.sleep(3)
-
+        bar.close()
         return [OfficalAccount(account, self) for account in accounts]
 
     def _search_account_pages(self, api, params):
@@ -333,6 +294,89 @@ class Wechat:
             account_list = response.get('list')
             accounts += account_list
         return accounts
+
+    def search_article(self, keyword, limit=0):
+        """
+        根据关键词搜索原创文章
+        :param keyword: 包含关键词的标题
+        :param limit:设置获取多少篇文章
+        :return:文章列表
+        """
+
+        headers = {'Host': 'mp.weixin.qq.com',
+                   'Connection': 'keep-alive',
+                   'Origin': 'https://mp.weixin.qq.com',
+                   'X-Requested-With': 'XMLHttpRequest',
+                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
+                   'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                   'Accept': '*/*',
+                   'Referer': f"https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={self.token}&lang=zh_CN",
+                   'Accept-Encoding': 'gzip, deflate, br',
+                   'Accept-Language': 'zh-CN,zh;q=0.8', }
+
+        search_api = self.api_collections('search', 'search article')
+        begin = 0
+        count = 20
+        post_data = {
+            "token": self.token,
+            "lang": "zh_CN",
+            "f": "json",
+            "random": random.randrange(0, 999),
+            "url": keyword,
+            "allow_reprint": 0,
+            "begin": begin,
+            "count": count
+        }
+        response = self.session.post(search_api, data=post_data,headers=headers).json()
+        total = response.get("total")
+        article_list = []
+
+        if limit == 0:
+            logger.info("一共搜到%s篇图文,已设置不限制获取数量", total)
+            bar = tqdm(total=total)
+            limit = total
+        else:
+            logger.info("一共搜到%s篇图文,已设置限制获取前%s篇图文", total, limit)
+            bar = tqdm(total=limit)
+
+        bar.set_description("进度条")
+        reach_limit = False
+
+        while not reach_limit:
+            page_result = self._search_article_pages(search_api, data=post_data, headers=headers)
+            if not page_result:
+                reach_limit = True
+            for article in page_result:
+                if len(article_list) >= limit or len(article_list) > total:
+                    reach_limit = True
+                else:
+                    article_list.append(article)
+                    bar.update(1)
+
+            begin += 20
+            post_data['begin'] = begin
+            time.sleep(1)
+        bar.close()
+
+        return ArticleSearchResult([ArticleWithContent(article) for article in article_list],type=0)
+
+    def _search_article_pages(self, api, data, headers):
+        """
+        根据页数不断地进行请求
+
+        :param api: 请求的API
+        :param data: 包含起始的数据
+        :return: 图文字典列表
+        """
+        article_list = []
+
+        response = self.session.post(api, data=data, headers=headers).json()
+
+        if response['base_resp']['ret'] == 0:
+            articles = response.get('list')
+            article_list += articles
+
+        return article_list
 
     def get_templates(self, threads=20, detail=True):
         """
@@ -351,11 +395,11 @@ class Wechat:
         headers["Referer"] = api
 
         params = {
-            'begin':0,
-            'count':20,
-            'keyword':'',
-            'f':'json',
-            'ajax':1
+            'begin': 0,
+            'count': 20,
+            'keyword': '',
+            'f': 'json',
+            'ajax': 1
         }
 
         # 先获取所有模板的总数
@@ -373,7 +417,6 @@ class Wechat:
                     return
 
         data_str = response.json().get("data")
-
 
         eval_data = eval(data_str)
 

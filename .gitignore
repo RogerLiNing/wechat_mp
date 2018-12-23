@@ -107,3 +107,4 @@ venv.bak/
 
 # private
 cookies.txt
+*.xlsx
