@@ -9,12 +9,25 @@
 - Python 3.6.x
 - 如果是3.7，需要你去Pipfile文件中，将python_version改成3.7。
 
+
+
 # 如何安装
+
+## 源码安装
+
 ```
 $ git clone https://github.com/RogerLiNing/wechat_mp.git
 $ cd wechat_mp
 $ python setup.py install
 ```
+
+## pip 安装
+
+```shell
+pip install wechat-mp
+```
+
+
 
 # 使用方法
 
