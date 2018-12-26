@@ -7,7 +7,7 @@
 
 # Python版本
 - Python 3.6.x
-- 如果是3.7，需要你去Pipfile文件中，将python_version改成3.7。
+
 
 
 
