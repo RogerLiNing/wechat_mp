@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="wechat-mp",
-    version="1.0.1",
+    version="1.0.3",
     author="Roger Lee",
     author_email="704482843@qq.com",
     description="导出一个公众号里的所有群发图文、根据关键词搜索原创图文和导出行业模板消息示例",
