@@ -165,3 +165,18 @@ result.save_articles_as_excel("python内存管理")
 
 ### Python阅读空间
 ![Python阅读空间](https://mp.weixin.qq.com/mp/qrcode?scene=10000004&size=102&__biz=MzU1MzEyMzYxMA==&mid=2247483679&idx=1&sn=b36c581c3639a7da40427adc88a7140f&send_time=)
+
+## 打包
+``` 
+python3 -m pip install --user --upgrade setuptools wheel
+python3 setup.py sdist bdist_wheel
+
+dist/
+  example_pkg_your_username-0.0.1-py3-none-any.whl
+  example_pkg_your_username-0.0.1.tar.gz
+```
+## 上传
+``` 
+python -m pip install --user --upgrade twine
+python -m twine upload dist/*
+```
