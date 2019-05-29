@@ -67,7 +67,7 @@ accounts = client.search_account("python阅读空间", limit=10)
 
 ### 获取公众号的推送图文
 这里选取了第一个账号，调用`articles()`方法获取其所有的图文。有些公众号有很多图文，传入`limit`参数来获取前N篇图文。
-你也可以传入`title_contain`参数来只获取标题包含特定关键词的图文。
+你也可以传入`title_contain`参数来只获取标题包含特定关键词的图文，可以传入`interval`参数来限制请求频率，默认3秒。
 
 ```python
 articles = accounts[0].articles()
