@@ -222,7 +222,7 @@ class Wechat:
             return
         logger.info("获取token：%s", self.token)
 
-    def search_account(self, name_or_id, limit=0):
+    def search_account(self, name_or_id, limit=0, interval=3):
         """
         根据公众号名称或者ID查询公众号列表
 
@@ -230,6 +230,7 @@ class Wechat:
         :type name_or_id: str
         :param limit: 获取多少条查询记录
         :type limit: int
+        :type interval: int 请求时间间隔，秒
         :return:  :class:`OfficalAccount <wechat_mp.models.OfficalAccount>` 对象列表
         """
 
@@ -240,6 +241,7 @@ class Wechat:
             'count': 5,
         }
         response = self.session.get(search_api, params=params).json()
+
         accounts = []
         base_resp = response.get('base_resp')
 
@@ -276,7 +278,7 @@ class Wechat:
 
             begin += 5
             params['begin'] = begin
-            time.sleep(3)
+            time.sleep(interval)
         bar.close()
         return [OfficalAccount(account, self) for account in accounts]
 
@@ -295,11 +297,12 @@ class Wechat:
             accounts += account_list
         return accounts
 
-    def search_article(self, keyword, limit=0):
+    def search_article(self, keyword, limit=0, interval=3):
         """
         根据关键词搜索原创文章
         :param keyword: 包含关键词的标题
         :param limit:设置获取多少篇文章
+        :type interval: int 请求时间间隔，秒
         :return:文章列表
         """
 
@@ -355,7 +358,7 @@ class Wechat:
 
             begin += 20
             post_data['begin'] = begin
-            time.sleep(1)
+            time.sleep(interval)
         bar.close()
 
         return ArticleSearchResult([ArticleWithContent(article) for article in article_list],type=0)
