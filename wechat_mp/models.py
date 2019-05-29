@@ -33,7 +33,7 @@ class OfficalAccount:
         self.round_head_img = raw_dict.get('round_head_img')
         self.service_type = raw_dict.get('service_type')
 
-    def articles(self, title_contain="", limit=0):
+    def articles(self, title_contain="", limit=0, interval=3):
         """
         获取公众号的历史群发图文
 
@@ -84,7 +84,7 @@ class OfficalAccount:
                     bar.update(1)
             begin += 5
             params['begin'] = begin
-            time.sleep(3)
+            time.sleep(interval)
 
         article_result = ArticleSearchResult([Article(article) for article in article_list], type=1)
         bar.close()
@@ -100,6 +100,7 @@ class OfficalAccount:
         """
         articles = []
         response = self.client.session.get(search_api, params=params).json()
+
         if response['base_resp']['ret'] == 0:
             app_msg_list = response.get('app_msg_list')
             articles += app_msg_list
