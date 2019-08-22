@@ -7,15 +7,15 @@
 @file: models.py
 @time: 2018/9/8 11:16
 """
+import logging
 import random
 import time
-import logging
 
 import openpyxl
 from tqdm import tqdm
 
-from wechat_mp.utils import from_timestamp_to_datetime_string
 from wechat_mp.exceptions import ArticlesNotObtainError
+from wechat_mp.utils import from_timestamp_to_datetime_string
 
 logger = logging.getLogger('wechat_mp')
 
@@ -25,6 +25,7 @@ class OfficalAccount:
     微信公众号的对象
 
     """
+
     def __init__(self, raw_dict, client):
         self.client = client
         self.fakeid = raw_dict.get('fakeid')
@@ -43,7 +44,8 @@ class OfficalAccount:
         :type limit: int
         :return: :class:`Article <wechat_mp.models.Article>` 对象列表
         """
-        search_api = self.client.api_collections('search', 'article list').format(self.client.token, random.randint(200, 999))
+        search_api = self.client.api_collections('search', 'article list').format(self.client.token,
+                                                                                  random.randint(200, 999))
 
         params = {
             'begin': 0,
@@ -90,7 +92,7 @@ class OfficalAccount:
         bar.close()
         return article_result
 
-    def _search_article_pages(self,search_api, params):
+    def _search_article_pages(self, search_api, params):
         """
         根据页数不断地进行请求
 
@@ -106,18 +108,19 @@ class OfficalAccount:
             articles += app_msg_list
         return articles
 
-
     def __str__(self):
         return f"<{self.__class__.__name__}: {self.nickname}>"
 
     def __repr__(self):
         return f"<{self.__class__.__name__}: {self.nickname}>"
 
+
 class Article:
     """
     微信图文对象
     """
-    def __init__(self,raw_dict):
+
+    def __init__(self, raw_dict):
         self.aid = raw_dict.get('aid')
         self.appmsgid = raw_dict.get('appmsgid')
         self.cover = raw_dict.get('cover')
@@ -142,12 +145,14 @@ class Article:
     def __repr__(self):
         return f"<{self.__class__.__name__}: {self.title}>"
 
+
 class ArticleWithContent:
     """
     通过关键词搜索出来的图文对象
     比通过账号搜索出来的图文对象
     具有更多的图文属性
     """
+
     def __init__(self, raw_dict):
         self.article_type = raw_dict.get("article_type")
         self.author = raw_dict.get("author")
@@ -167,6 +172,7 @@ class ArticleWithContent:
     def __repr__(self):
         return f"<{self.__class__.__name__}: {self.title}>"
 
+
 class ArticleSearchResult:
 
     def __init__(self, article_list, type):
@@ -177,7 +183,7 @@ class ArticleSearchResult:
     def total(self):
         return len(self.article_list)
 
-    def save_articles_as_excel(self,filename, include_content=False):
+    def save_articles_as_excel(self, filename, include_content=False):
         """
         将该公众号搜索出来的历史群发图文保存到Excel中
 
@@ -217,7 +223,7 @@ class ArticleSearchResult:
             sheet.title = "图文列表"
             sheet = write_header(sheet)
 
-            for index, article in enumerate(self.article_list,2):
+            for index, article in enumerate(self.article_list, 2):
                 if include_content:
                     sheet.cell(index, 1, value=article.nickname)
                     sheet.cell(index, 2, value=article.title)
@@ -270,11 +276,8 @@ class ArticleSearchResult:
         if isinstance(item, int):
             return self.article_list[item]
 
-
     def __str__(self):
         return f"<{self.__class__.__name__}: {len(self.article_list)}>"
 
     def __repr__(self):
         return f"<{self.__class__.__name__}: {len(self.article_list)}>"
-
-

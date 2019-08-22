@@ -8,11 +8,13 @@
 @time: 2018/9/8 11:16
 """
 
+
 class InvalidAccountOrPassword(Exception):
     """
     登陆账号或者密码错误时的异常
     """
     pass
+
 
 class ArticlesNotObtainError(Exception):
     """

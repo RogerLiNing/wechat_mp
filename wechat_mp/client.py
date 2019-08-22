@@ -7,24 +7,18 @@
 @file: client.py
 @time: 2018/9/8 11:16
 """
-import re
-import random
-import time
 import json
-import logging
-import os
+import re
 import urllib.parse
 from io import BytesIO
 
-from PIL import Image
-from tqdm import tqdm
-from threadpool import *
 import requests
+from PIL import Image
+from threadpool import *
 
-from wechat_mp.utils import *
 from wechat_mp.exceptions import *
 from wechat_mp.models import *
-
+from wechat_mp.utils import *
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s [%(threadName)s:%(thread)d] [%(name)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s')
@@ -80,7 +74,7 @@ class Wechat:
                 'search account': '/cgi-bin/searchbiz?action=search_biz&token={0}&lang=zh_CN&f=json&ajax=1&random={1}',
                 'article list': '/cgi-bin/appmsg?token={0}&lang=zh_CN&f=json&ajax=1&random={1}&action=list_ex&type=9',
                 'search article': '/cgi-bin/operate_appmsg?sub=check_appmsg_copyright_stat',
-                'search page':'/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={0}&lang=zh_CN'
+                'search page': '/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={0}&lang=zh_CN'
             },
             'template': {
                 'get single template detail': '/advanced/tmplmsg?action=tmpl_preview&t=tmplmsg/preview&id={0}&token={1}&lang=zh_CN',
@@ -330,7 +324,7 @@ class Wechat:
             "begin": begin,
             "count": count
         }
-        response = self.session.post(search_api, data=post_data,headers=headers).json()
+        response = self.session.post(search_api, data=post_data, headers=headers).json()
         total = response.get("total")
         article_list = []
 
@@ -361,7 +355,7 @@ class Wechat:
             time.sleep(interval)
         bar.close()
 
-        return ArticleSearchResult([ArticleWithContent(article) for article in article_list],type=0)
+        return ArticleSearchResult([ArticleWithContent(article) for article in article_list], type=0)
 
     def _search_article_pages(self, api, data, headers):
         """

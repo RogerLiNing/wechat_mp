@@ -8,7 +8,7 @@
 @time: 2018/9/8 11:16
 """
 
-from . import utils
-from .client import Wechat
 from . import exceptions
 from . import models
+from . import utils
+from .client import Wechat
