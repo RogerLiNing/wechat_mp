@@ -44,7 +44,7 @@ class Wechat:
 
     def __init__(self, email, password):
         self.email = email
-        self.passowrd = password
+        self.password = password
 
         self._base_url = 'https://mp.weixin.qq.com'
         self._is_login = False
@@ -102,7 +102,7 @@ class Wechat:
             'Referer': 'https://mp.weixin.qq.com/'}
 
         data = {'username': self.email,
-                'pwd': md5(self.passowrd[0:16].encode('utf-8')),
+                'pwd': md5(self.password[0:16].encode('utf-8')),
                 'imgcode': '',
                 'f': 'json',
                 'token': '',
@@ -116,7 +116,7 @@ class Wechat:
         if response.status_code == 200:
             base_resp = response.json().get('base_resp')
             if base_resp and base_resp['ret'] == 200023:
-                raise InvalidAccountOrPassword(f"账号：{self.email} 或者 密码：{self.passowrd} 不正确")
+                raise InvalidAccountOrPassword(f"账号：{self.email} 或者 密码：{self.password} 不正确")
             elif base_resp and base_resp['ret'] == 200008:
                 self._verify_qrcode(headers)
             elif base_resp and base_resp['ret'] == 0:
