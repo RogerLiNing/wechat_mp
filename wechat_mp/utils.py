@@ -14,9 +14,9 @@ import time
 from bs4 import BeautifulSoup
 
 
-def md5(str):
+def encrypt(text):
     m = hashlib.md5()
-    m.update(str)
+    m.update(text)
     return m.hexdigest()
 
 

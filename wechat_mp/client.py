@@ -50,6 +50,17 @@ class Wechat:
         self._is_login = False
         self._token = None
         self.session = requests.Session()
+        self.session.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 \
+            (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36',
+            'Origin': 'https://mp.weixin.qq.com',
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded;charset="UTF-8"',
+            'Accept': '*/*',
+            'Referer': 'https://mp.weixin.qq.com/'
+        }
         self._start_login()
 
     def api_collections(self, name, path):
@@ -91,26 +102,18 @@ class Wechat:
 
         :return: None
         """
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36',
-            'Origin': 'https://mp.weixin.qq.com',
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-Type': 'application/x-www-form-urlencoded;charset="UTF-8"',
-            'Accept': '*/*',
-            'Referer': 'https://mp.weixin.qq.com/'}
-
-        data = {'username': self.email,
-                'pwd': md5(self.password[0:16].encode('utf-8')),
-                'imgcode': '',
-                'f': 'json',
-                'token': '',
-                'lang': 'zh_CN',
-                'ajax': 1}
+        data = {
+            'username': self.email,
+            'pwd': encrypt(self.password[0:16].encode('utf-8')),
+            'imgcode': '',
+            'f': 'json',
+            'token': '',
+            'lang': 'zh_CN',
+            'ajax': 1
+        }
 
         api = self.api_collections('login', 'start login')
-        response = self.session.post(api, headers=headers, data=data)
+        response = self.session.post(api, data=data)
 
         logger.info("开始模拟登陆 账号 %s", self.email)
         if response.status_code == 200:
@@ -118,11 +121,11 @@ class Wechat:
             if base_resp and base_resp['ret'] == 200023:
                 raise InvalidAccountOrPassword(f"账号：{self.email} 或者 密码：{self.password} 不正确")
             elif base_resp and base_resp['ret'] == 200008:
-                self._verify_qrcode(headers)
+                self._verify_qrcode()
             elif base_resp and base_resp['ret'] == 0:
-                self._verify_qrcode(headers)
+                self._verify_qrcode()
 
-    def _verify_qrcode(self, headers):
+    def _verify_qrcode(self):
         """
         获取验证二维码，显示后监控是否扫码
 
@@ -133,11 +136,11 @@ class Wechat:
         redirect_url = self.api_collections('login', 'redirect url').format(urllib.parse.quote(self.email))
         # 跳转二维码扫码页面
         logger.info("跳转二维码扫码页面")
-        response = self.session.get(redirect_url, headers=headers)
+        response = self.session.get(redirect_url)
 
         # 获取二维码图片，显示后等待扫码
         qrcode_url = self.api_collections('login', 'qrcode url').format(random.randint(200, 999))
-        response = self.session.get(qrcode_url, headers=headers)
+        response = self.session.get(qrcode_url)
         image = Image.open(BytesIO(response.content))
         image.show()
         logger.info("已经获取二维码图片并显示，等待扫码")
@@ -151,17 +154,8 @@ class Wechat:
         logger.info("开始检查二维码是否被扫和是否已确认")
         while not self._is_login:
             time.sleep(2)
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36',
-                'Origin': 'https://mp.weixin.qq.com',
-                'Pragma': 'no-cache',
-                'Cache-Control': 'no-cache',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/x-www-form-urlencoded;charset="UTF-8"',
-                'Accept': '*/*',
-                'Referer': 'https://mp.weixin.qq.com/'}
             check_url = self.api_collections('login', 'check login')
-            response = self.session.get(check_url, headers=headers, ).json()
+            response = self.session.get(check_url).json()
 
             status = response['status']
 
@@ -177,29 +171,21 @@ class Wechat:
     def _post_login(self):
         """
         扫码确认后方可进行这步操作
-
         :return:
         """
-        headers = {'Host': 'mp.weixin.qq.com',
-                   'Connection': 'keep-alive',
-                   'Origin': 'https://mp.weixin.qq.com',
-                   'X-Requested-With': 'XMLHttpRequest',
-                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
-                   'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                   'Accept': '*/*',
-                   'Referer': self.api_collections('login', 'redirect url').format(urllib.parse.quote(self.email)),
-                   'Accept-Encoding': 'gzip, deflate, br',
-                   'Accept-Language': 'zh-CN,zh;q=0.8', }
+        self.session.headers.update({'Referer': self.api_collections('login', 'redirect url').format(urllib.parse.quote(self.email))})
 
         login_url = self.api_collections('login', 'post login')
 
-        data = {"token": "",
-                "lang": "zh_CN",
-                "f": "json",
-                "ajax": "1"}
+        data = {
+            "token": "",
+            "lang": "zh_CN",
+            "f": "json",
+            "ajax": "1"
+        }
 
         # post登陆
-        response = self.session.post(login_url, data=json.dumps(data), headers=headers)
+        response = self.session.post(login_url, data=json.dumps(data))
         if response.status_code == 200:
             logger.info("Post登陆成功")
         else:
@@ -207,7 +193,7 @@ class Wechat:
             return
         # post登陆之后，需要获取token，这个token是调用其他接口的唯一凭证
         # 因为已经登录了，随便访问首页都能得到token，通过正则提取即可
-        response = self.session.get('https://mp.weixin.qq.com/', headers=headers)
+        response = self.session.get('https://mp.weixin.qq.com/')
         find_token = re.findall(r'&token=(\d+)', response.text)
         if find_token:
             self.token = find_token[0]
@@ -300,16 +286,17 @@ class Wechat:
         :return:文章列表
         """
 
-        headers = {'Host': 'mp.weixin.qq.com',
-                   'Connection': 'keep-alive',
-                   'Origin': 'https://mp.weixin.qq.com',
-                   'X-Requested-With': 'XMLHttpRequest',
-                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
-                   'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                   'Accept': '*/*',
-                   'Referer': f"https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={self.token}&lang=zh_CN",
-                   'Accept-Encoding': 'gzip, deflate, br',
-                   'Accept-Language': 'zh-CN,zh;q=0.8', }
+        headers = {
+            'Host': 'mp.weixin.qq.com',
+            'Connection': 'keep-alive',
+            'Origin': 'https://mp.weixin.qq.com',
+            'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Accept': '*/*',
+            'Referer': f"https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={self.token}&lang=zh_CN",
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.8', }
 
         search_api = self.api_collections('search', 'search article')
         begin = 0
@@ -324,7 +311,7 @@ class Wechat:
             "begin": begin,
             "count": count
         }
-        response = self.session.post(search_api, data=post_data, headers=headers).json()
+        response = self.session.post(search_api, data=post_data).json()
         total = response.get("total")
         article_list = []
 
