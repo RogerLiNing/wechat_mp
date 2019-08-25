@@ -37,7 +37,7 @@ class Wechat:
     :param email: 登陆微信后台的邮箱
     :type email: str
     :param password: 登陆密码
-    :type passowrd: str
+    :type password: str
     :param enable_cookies: 是否允许保存cookies，避免多次扫码登陆。
     :type enable_cookies: bool
     """
