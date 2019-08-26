@@ -8,6 +8,8 @@
 @time: 2018/9/8 11:16
 """
 import json
+import os
+import pickle
 import re
 import urllib.parse
 from io import BytesIO
@@ -30,16 +32,13 @@ logger.addHandler(console)
 logger.propagate = False
 
 
-class Wechat:
+class WeChat:
     """
     主要的API操作程序，用来登陆和调用API方法
-
     :param email: 登陆微信后台的邮箱
     :type email: str
     :param password: 登陆密码
     :type password: str
-    :param enable_cookies: 是否允许保存cookies，避免多次扫码登陆。
-    :type enable_cookies: bool
     """
 
     def __init__(self, email, password):
@@ -48,20 +47,26 @@ class Wechat:
 
         self._base_url = 'https://mp.weixin.qq.com'
         self._is_login = False
-        self._token = None
-        self.session = requests.Session()
-        self.session.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 \
-            (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36',
-            'Origin': 'https://mp.weixin.qq.com',
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-Type': 'application/x-www-form-urlencoded;charset="UTF-8"',
-            'Accept': '*/*',
-            'Referer': 'https://mp.weixin.qq.com/'
-        }
-        self._start_login()
+        self.token = None
+        pkl_data = self._load_session()
+        if pkl_data:
+            self.session = pkl_data.get("session")
+            self.token = pkl_data.get("token")
+            self._is_login = True
+        else:
+            self.session = requests.Session()
+            self.session.headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 \
+                (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36',
+                'Origin': 'https://mp.weixin.qq.com',
+                'Pragma': 'no-cache',
+                'Cache-Control': 'no-cache',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded;charset="UTF-8"',
+                'Accept': '*/*',
+                'Referer': 'https://mp.weixin.qq.com/'
+            }
+            self._start_login()
 
     def api_collections(self, name, path):
         """
@@ -196,9 +201,40 @@ class Wechat:
         if find_token:
             self.token = find_token[0]
             self._is_login = True
+            self._dump_session()
         else:
             return
         logger.info("获取token：%s", self.token)
+
+    def _dump_session(self, filename="./session.pkl"):
+        """序列化session"""
+        data = {
+            "create_time": int(time.time()),
+            "session": self.session,
+            "email": self.email,
+            "password": self.password,
+            "token": self.token
+        }
+        with open(filename, 'wb') as f:
+            pickle.dump(data, f)
+
+    @staticmethod
+    def _load_session(filename="./session.pkl"):
+        """反序列化session"""
+        # TODO 增加检测超过24小时的 设为失效
+        if not os.path.exists(filename):
+            return None
+        with open(filename, 'rb') as f:
+            return pickle.load(f, encoding='utf-8')
+
+    def _delete_session(self):
+        """
+        用于删除过期的session,
+        如果在搜索公众号或者文章中 返回的响应 invalid session
+        则将session.pkl文件删除，置为未登录状态
+        :return:
+        """
+        pass
 
     def search_account(self, name_or_id, limit=0, interval=3):
         """

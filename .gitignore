@@ -110,3 +110,5 @@ cookies.txt
 *.xlsx
 
 .idea/
+
+*.pkl

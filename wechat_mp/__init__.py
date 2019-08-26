@@ -11,4 +11,4 @@
 from . import exceptions
 from . import models
 from . import utils
-from .client import Wechat
+from .client import WeChat
