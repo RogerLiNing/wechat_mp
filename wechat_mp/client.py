@@ -224,14 +224,16 @@ class WeChat:
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
 
-    @staticmethod
-    def _load_session(filename="./session.pkl"):
+    def _load_session(self, filename="./session.pkl"):
         """反序列化session"""
         # TODO 增加检测超过24小时的 设为失效
         if not os.path.exists(filename):
             return None
         with open(filename, 'rb') as f:
-            return pickle.load(f, encoding='utf-8')
+            pkl_data = pickle.load(f, encoding='utf-8')
+            if pkl_data.get("email") != self.email:
+                return None
+            return pkl_data
 
     def _delete_session(self):
         """
