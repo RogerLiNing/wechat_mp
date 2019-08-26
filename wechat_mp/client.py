@@ -128,15 +128,13 @@ class Wechat:
     def _verify_qrcode(self):
         """
         获取验证二维码，显示后监控是否扫码
-
-        :param headers: 请求报文
         :return:
         """
-        """{"base_resp":{"err_msg":"ok","ret":0},"redirect_url":"/cgi-bin/bizlogin?action=validate&lang=zh_CN&account=nnjz%40jiexiaochina.com"}"""
         redirect_url = self.api_collections('login', 'redirect url').format(urllib.parse.quote(self.email))
         # 跳转二维码扫码页面
         logger.info("跳转二维码扫码页面")
         response = self.session.get(redirect_url)
+        # 响应内容见response/verify_qrcode.json
 
         # 获取二维码图片，显示后等待扫码
         qrcode_url = self.api_collections('login', 'qrcode url').format(random.randint(200, 999))
