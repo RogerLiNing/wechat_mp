@@ -39,11 +39,14 @@ class WeChat:
     :type email: str
     :param password: 登陆密码
     :type password: str
+    :param enable_cookies: 是否允许保存cookies，避免多次扫码登陆。
+    :type enable_cookies: bool
     """
 
-    def __init__(self, email, password):
+    def __init__(self, email, password, enable_cookies=False):
         self.email = email
         self.password = password
+        self.enable_cookies = enable_cookies
 
         self._base_url = 'https://mp.weixin.qq.com'
         self._is_login = False
@@ -208,6 +211,9 @@ class WeChat:
 
     def _dump_session(self, filename="./session.pkl"):
         """序列化session"""
+        if not self.enable_cookies:
+            return
+
         data = {
             "create_time": int(time.time()),
             "session": self.session,
