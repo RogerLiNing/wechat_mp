@@ -87,7 +87,8 @@ class WeChat:
                 'post login': '/cgi-bin/bizlogin?action=login',
                 'check login': '/cgi-bin/loginqrcode?action=ask&token=&lang=zh_CN&f=json&ajax=1',
                 'redirect url': '/cgi-bin/bizlogin?action=validate&lang=zh_CN&account={0}',
-                'qrcode url': '/cgi-bin/loginqrcode?action=getqrcode&param=4300&rd={0}'
+                'qrcode url': '/cgi-bin/loginqrcode?action=getqrcode&param=4300&rd={0}',
+                "captcha url": "/cgi-bin/verifycode?username={0}&r={1}"
             },
             'search': {
                 'search account': '/cgi-bin/searchbiz?action=search_biz&token={0}&lang=zh_CN&f=json&ajax=1&random={1}',
@@ -103,17 +104,16 @@ class WeChat:
 
         return self._base_url + apis[name][path]
 
-    def _start_login(self):
+    def _start_login(self, img_code=''):
         """
         该方法是登陆的第一步，先post登陆邮箱和密码
         成功的话，会进入验证二维码页面
-
         :return: None
         """
         data = {
             'username': self.email,
             'pwd': encrypt(self.password[0:16].encode('utf-8')),
-            'imgcode': '',
+            'imgcode': img_code,
             'f': 'json',
             'token': '',
             'lang': 'zh_CN',
@@ -129,9 +129,19 @@ class WeChat:
             if base_resp and base_resp['ret'] == 200023:
                 raise InvalidAccountOrPassword(f"账号：{self.email} 或者 密码：{self.password} 不正确")
             elif base_resp and base_resp['ret'] == 200008:
-                self._verify_qrcode()
+                # {"base_resp":{"err_msg":"need verify code","ret":200008}}
+                self._verify_captcha()
             elif base_resp and base_resp['ret'] == 0:
                 self._verify_qrcode()
+
+    def _verify_captcha(self):
+        """验证码识别"""
+        api = self.api_collections('login', 'captcha url').format(self.email, int(time.time())* 1000)
+        response = self.session.post(api)
+        captcha = Image.open(BytesIO(response.content))
+        captcha.show()
+        captcha_result = input("输入验证码: ", )
+        self._start_login(captcha_result)
 
     def _verify_qrcode(self):
         """
