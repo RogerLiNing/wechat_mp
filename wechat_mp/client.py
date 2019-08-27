@@ -108,7 +108,8 @@ class WeChat:
         """
         该方法是登陆的第一步，先post登陆邮箱和密码
         成功的话，会进入验证二维码页面
-        :return: None
+        :param img_code: 验证码结果
+        :return:
         """
         data = {
             'username': self.email,
@@ -136,7 +137,7 @@ class WeChat:
 
     def _verify_captcha(self):
         """验证码识别"""
-        api = self.api_collections('login', 'captcha url').format(self.email, int(time.time())* 1000)
+        api = self.api_collections('login', 'captcha url').format(self.email, int(time.time()) * 1000)
         response = self.session.post(api)
         captcha = Image.open(BytesIO(response.content))
         captcha.show()
@@ -248,10 +249,15 @@ class WeChat:
 
         with open(filename, 'rb') as f:
             pkl_data = pickle.load(f, encoding='utf-8')
-            logged = self._get_token(pkl_data.get("session"))
-            if pkl_data.get("email") != self.email or not logged:
+
+            # 检测邮箱是否匹配
+            if pkl_data.get("email") != self.email:
                 return None
-            return pkl_data
+
+            # 检测是否已登陆
+            if self._get_token(pkl_data.get("session")):
+                return pkl_data
+        return None
 
     @staticmethod
     def _delete_session(path="./session.pkl"):
