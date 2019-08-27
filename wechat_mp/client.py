@@ -243,9 +243,9 @@ class WeChat:
 
     def _load_session(self, filename="./session.pkl"):
         """反序列化session"""
-        # TODO 增加检测超过24小时的 设为失效
         if not os.path.exists(filename):
             return None
+
         with open(filename, 'rb') as f:
             pkl_data = pickle.load(f, encoding='utf-8')
             logged = self._get_token(pkl_data.get("session"))
