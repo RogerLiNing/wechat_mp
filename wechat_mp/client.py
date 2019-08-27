@@ -207,17 +207,23 @@ class WeChat:
         else:
             logger.info("Post登陆失败")
             return
+
+        self._get_token(self.session)
+
+    def _get_token(self, session):
         # post登陆之后，需要获取token，这个token是调用其他接口的唯一凭证
         # 因为已经登录了，随便访问首页都能得到token，通过正则提取即可
-        response = self.session.get('https://mp.weixin.qq.com/')
+        response = session.get('https://mp.weixin.qq.com/')
         find_token = re.findall(r'&token=(\d+)', response.text)
         if find_token:
             self.token = find_token[0]
+            logger.info("获取token：%s", self.token)
             self._is_login = True
+            self.session = session
             self._dump_session()
+            return True
         else:
-            return
-        logger.info("获取token：%s", self.token)
+            return False
 
     def _dump_session(self, filename="./session.pkl"):
         """序列化session"""
@@ -241,7 +247,8 @@ class WeChat:
             return None
         with open(filename, 'rb') as f:
             pkl_data = pickle.load(f, encoding='utf-8')
-            if pkl_data.get("email") != self.email:
+            logged = self._get_token(pkl_data.get("session"))
+            if pkl_data.get("email") != self.email or not logged:
                 return None
             return pkl_data
 
