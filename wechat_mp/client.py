@@ -223,6 +223,7 @@ class WeChat:
             self._dump_session()
             return True
         else:
+            self._delete_session()
             return False
 
     def _dump_session(self, filename="./session.pkl"):
@@ -252,14 +253,16 @@ class WeChat:
                 return None
             return pkl_data
 
-    def _delete_session(self):
+    @staticmethod
+    def _delete_session(path="./session.pkl"):
         """
         用于删除过期的session,
         如果在搜索公众号或者文章中 返回的响应 invalid session
         则将session.pkl文件删除，置为未登录状态
         :return:
         """
-        pass
+        if os.path.exists(path):
+            os.remove(path)
 
     def search_account(self, name_or_id, limit=0, interval=3):
         """
