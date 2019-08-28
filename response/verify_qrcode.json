@@ -1,0 +1,7 @@
+{
+  "base_resp": {
+    "err_msg": "ok",
+    "ret": 0
+  },
+  "redirect_url": "/cgi-bin/bizlogin?action=validate&lang=zh_CN&account=nnjz%40jiexiaochina.com"
+}

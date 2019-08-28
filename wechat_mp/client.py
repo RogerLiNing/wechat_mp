@@ -7,24 +7,20 @@
 @file: client.py
 @time: 2018/9/8 11:16
 """
-import re
-import random
-import time
 import json
-import logging
 import os
+import pickle
+import re
 import urllib.parse
 from io import BytesIO
 
-from PIL import Image
-from tqdm import tqdm
-from threadpool import *
 import requests
+from PIL import Image
+from threadpool import *
 
-from wechat_mp.utils import *
 from wechat_mp.exceptions import *
 from wechat_mp.models import *
-
+from wechat_mp.utils import *
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s [%(threadName)s:%(thread)d] [%(name)s:%(lineno)d] [%(module)s:%(funcName)s] [%(levelname)s]- %(message)s')
@@ -36,27 +32,44 @@ logger.addHandler(console)
 logger.propagate = False
 
 
-class Wechat:
+class WeChat:
     """
     主要的API操作程序，用来登陆和调用API方法
-
     :param email: 登陆微信后台的邮箱
     :type email: str
     :param password: 登陆密码
-    :type passowrd: str
+    :type password: str
     :param enable_cookies: 是否允许保存cookies，避免多次扫码登陆。
     :type enable_cookies: bool
     """
 
-    def __init__(self, email, password):
+    def __init__(self, email, password, enable_cookies=False):
         self.email = email
-        self.passowrd = password
+        self.password = password
+        self.enable_cookies = enable_cookies
 
         self._base_url = 'https://mp.weixin.qq.com'
         self._is_login = False
-        self._token = None
-        self.session = requests.Session()
-        self._start_login()
+        self.token = None
+        pkl_data = self._load_session()
+        if pkl_data:
+            self.session = pkl_data.get("session")
+            self.token = pkl_data.get("token")
+            self._is_login = True
+        else:
+            self.session = requests.Session()
+            self.session.headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 \
+                (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36',
+                'Origin': 'https://mp.weixin.qq.com',
+                'Pragma': 'no-cache',
+                'Cache-Control': 'no-cache',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded;charset="UTF-8"',
+                'Accept': '*/*',
+                'Referer': 'https://mp.weixin.qq.com/'
+            }
+            self._start_login()
 
     def api_collections(self, name, path):
         """
@@ -74,13 +87,14 @@ class Wechat:
                 'post login': '/cgi-bin/bizlogin?action=login',
                 'check login': '/cgi-bin/loginqrcode?action=ask&token=&lang=zh_CN&f=json&ajax=1',
                 'redirect url': '/cgi-bin/bizlogin?action=validate&lang=zh_CN&account={0}',
-                'qrcode url': '/cgi-bin/loginqrcode?action=getqrcode&param=4300&rd={0}'
+                'qrcode url': '/cgi-bin/loginqrcode?action=getqrcode&param=4300&rd={0}',
+                "captcha url": "/cgi-bin/verifycode?username={0}&r={1}"
             },
             'search': {
                 'search account': '/cgi-bin/searchbiz?action=search_biz&token={0}&lang=zh_CN&f=json&ajax=1&random={1}',
                 'article list': '/cgi-bin/appmsg?token={0}&lang=zh_CN&f=json&ajax=1&random={1}&action=list_ex&type=9',
                 'search article': '/cgi-bin/operate_appmsg?sub=check_appmsg_copyright_stat',
-                'search page':'/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={0}&lang=zh_CN'
+                'search page': '/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={0}&lang=zh_CN'
             },
             'template': {
                 'get single template detail': '/advanced/tmplmsg?action=tmpl_preview&t=tmplmsg/preview&id={0}&token={1}&lang=zh_CN',
@@ -90,60 +104,60 @@ class Wechat:
 
         return self._base_url + apis[name][path]
 
-    def _start_login(self):
+    def _start_login(self, img_code=''):
         """
         该方法是登陆的第一步，先post登陆邮箱和密码
         成功的话，会进入验证二维码页面
-
-        :return: None
+        :param img_code: 验证码结果
+        :return:
         """
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36',
-            'Origin': 'https://mp.weixin.qq.com',
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-Type': 'application/x-www-form-urlencoded;charset="UTF-8"',
-            'Accept': '*/*',
-            'Referer': 'https://mp.weixin.qq.com/'}
-
-        data = {'username': self.email,
-                'pwd': md5(self.passowrd[0:16].encode('utf-8')),
-                'imgcode': '',
-                'f': 'json',
-                'token': '',
-                'lang': 'zh_CN',
-                'ajax': 1}
+        data = {
+            'username': self.email,
+            'pwd': encrypt(self.password[0:16].encode('utf-8')),
+            'imgcode': img_code,
+            'f': 'json',
+            'token': '',
+            'lang': 'zh_CN',
+            'ajax': 1
+        }
 
         api = self.api_collections('login', 'start login')
-        response = self.session.post(api, headers=headers, data=data)
+        response = self.session.post(api, data=data)
 
         logger.info("开始模拟登陆 账号 %s", self.email)
         if response.status_code == 200:
             base_resp = response.json().get('base_resp')
             if base_resp and base_resp['ret'] == 200023:
-                raise InvalidAccountOrPassword(f"账号：{self.email} 或者 密码：{self.passowrd} 不正确")
+                raise InvalidAccountOrPassword(f"账号：{self.email} 或者 密码：{self.password} 不正确")
             elif base_resp and base_resp['ret'] == 200008:
-                self._verify_qrcode(headers)
+                # {"base_resp":{"err_msg":"need verify code","ret":200008}}
+                self._verify_captcha()
             elif base_resp and base_resp['ret'] == 0:
-                self._verify_qrcode(headers)
+                self._verify_qrcode()
 
-    def _verify_qrcode(self, headers):
+    def _verify_captcha(self):
+        """验证码识别"""
+        api = self.api_collections('login', 'captcha url').format(self.email, int(time.time()) * 1000)
+        response = self.session.post(api)
+        captcha = Image.open(BytesIO(response.content))
+        captcha.show()
+        captcha_result = input("输入验证码: ", )
+        self._start_login(captcha_result)
+
+    def _verify_qrcode(self):
         """
         获取验证二维码，显示后监控是否扫码
-
-        :param headers: 请求报文
         :return:
         """
-        """{"base_resp":{"err_msg":"ok","ret":0},"redirect_url":"/cgi-bin/bizlogin?action=validate&lang=zh_CN&account=nnjz%40jiexiaochina.com"}"""
         redirect_url = self.api_collections('login', 'redirect url').format(urllib.parse.quote(self.email))
         # 跳转二维码扫码页面
         logger.info("跳转二维码扫码页面")
-        response = self.session.get(redirect_url, headers=headers)
+        response = self.session.get(redirect_url)
+        # 响应内容见response/verify_qrcode.json
 
         # 获取二维码图片，显示后等待扫码
         qrcode_url = self.api_collections('login', 'qrcode url').format(random.randint(200, 999))
-        response = self.session.get(qrcode_url, headers=headers)
+        response = self.session.get(qrcode_url)
         image = Image.open(BytesIO(response.content))
         image.show()
         logger.info("已经获取二维码图片并显示，等待扫码")
@@ -157,17 +171,8 @@ class Wechat:
         logger.info("开始检查二维码是否被扫和是否已确认")
         while not self._is_login:
             time.sleep(2)
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3218.0 Safari/537.36',
-                'Origin': 'https://mp.weixin.qq.com',
-                'Pragma': 'no-cache',
-                'Cache-Control': 'no-cache',
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/x-www-form-urlencoded;charset="UTF-8"',
-                'Accept': '*/*',
-                'Referer': 'https://mp.weixin.qq.com/'}
             check_url = self.api_collections('login', 'check login')
-            response = self.session.get(check_url, headers=headers, ).json()
+            response = self.session.get(check_url).json()
 
             status = response['status']
 
@@ -183,44 +188,87 @@ class Wechat:
     def _post_login(self):
         """
         扫码确认后方可进行这步操作
-
         :return:
         """
-        headers = {'Host': 'mp.weixin.qq.com',
-                   'Connection': 'keep-alive',
-                   'Origin': 'https://mp.weixin.qq.com',
-                   'X-Requested-With': 'XMLHttpRequest',
-                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
-                   'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                   'Accept': '*/*',
-                   'Referer': self.api_collections('login', 'redirect url').format(urllib.parse.quote(self.email)),
-                   'Accept-Encoding': 'gzip, deflate, br',
-                   'Accept-Language': 'zh-CN,zh;q=0.8', }
+        self.session.headers.update({'Referer': self.api_collections('login', 'redirect url').format(urllib.parse.quote(self.email))})
 
         login_url = self.api_collections('login', 'post login')
 
-        data = {"token": "",
-                "lang": "zh_CN",
-                "f": "json",
-                "ajax": "1"}
+        data = {
+            "token": "",
+            "lang": "zh_CN",
+            "f": "json",
+            "ajax": "1"
+        }
 
         # post登陆
-        response = self.session.post(login_url, data=json.dumps(data), headers=headers)
+        response = self.session.post(login_url, data=json.dumps(data))
         if response.status_code == 200:
             logger.info("Post登陆成功")
         else:
             logger.info("Post登陆失败")
             return
+
+        self._get_token(self.session)
+
+    def _get_token(self, session):
         # post登陆之后，需要获取token，这个token是调用其他接口的唯一凭证
         # 因为已经登录了，随便访问首页都能得到token，通过正则提取即可
-        response = self.session.get('https://mp.weixin.qq.com/', headers=headers)
+        response = session.get('https://mp.weixin.qq.com/')
         find_token = re.findall(r'&token=(\d+)', response.text)
         if find_token:
             self.token = find_token[0]
+            logger.info("获取token：%s", self.token)
             self._is_login = True
+            self.session = session
+            self._dump_session()
+            return True
         else:
+            self._delete_session()
+            return False
+
+    def _dump_session(self, filename="./session.pkl"):
+        """序列化session"""
+        if not self.enable_cookies:
             return
-        logger.info("获取token：%s", self.token)
+
+        data = {
+            "create_time": int(time.time()),
+            "session": self.session,
+            "email": self.email,
+            "password": self.password,
+            "token": self.token
+        }
+        with open(filename, 'wb') as f:
+            pickle.dump(data, f)
+
+    def _load_session(self, filename="./session.pkl"):
+        """反序列化session"""
+        if not os.path.exists(filename):
+            return None
+
+        with open(filename, 'rb') as f:
+            pkl_data = pickle.load(f, encoding='utf-8')
+
+            # 检测邮箱是否匹配
+            if pkl_data.get("email") != self.email:
+                return None
+
+            # 检测是否已登陆
+            if self._get_token(pkl_data.get("session")):
+                return pkl_data
+        return None
+
+    @staticmethod
+    def _delete_session(path="./session.pkl"):
+        """
+        用于删除过期的session,
+        如果在搜索公众号或者文章中 返回的响应 invalid session
+        则将session.pkl文件删除，置为未登录状态
+        :return:
+        """
+        if os.path.exists(path):
+            os.remove(path)
 
     def search_account(self, name_or_id, limit=0, interval=3):
         """
@@ -306,16 +354,17 @@ class Wechat:
         :return:文章列表
         """
 
-        headers = {'Host': 'mp.weixin.qq.com',
-                   'Connection': 'keep-alive',
-                   'Origin': 'https://mp.weixin.qq.com',
-                   'X-Requested-With': 'XMLHttpRequest',
-                   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
-                   'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                   'Accept': '*/*',
-                   'Referer': f"https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={self.token}&lang=zh_CN",
-                   'Accept-Encoding': 'gzip, deflate, br',
-                   'Accept-Language': 'zh-CN,zh;q=0.8', }
+        headers = {
+            'Host': 'mp.weixin.qq.com',
+            'Connection': 'keep-alive',
+            'Origin': 'https://mp.weixin.qq.com',
+            'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Accept': '*/*',
+            'Referer': f"https://mp.weixin.qq.com/cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=10&share=1&token={self.token}&lang=zh_CN",
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.8', }
 
         search_api = self.api_collections('search', 'search article')
         begin = 0
@@ -330,7 +379,7 @@ class Wechat:
             "begin": begin,
             "count": count
         }
-        response = self.session.post(search_api, data=post_data,headers=headers).json()
+        response = self.session.post(search_api, data=post_data).json()
         total = response.get("total")
         article_list = []
 
@@ -361,7 +410,7 @@ class Wechat:
             time.sleep(interval)
         bar.close()
 
-        return ArticleSearchResult([ArticleWithContent(article) for article in article_list],type=0)
+        return ArticleSearchResult([ArticleWithContent(article) for article in article_list], type=0)
 
     def _search_article_pages(self, api, data, headers):
         """

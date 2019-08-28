@@ -10,11 +10,13 @@
 
 import hashlib
 import time
+
 from bs4 import BeautifulSoup
 
-def md5(str):
+
+def encrypt(text):
     m = hashlib.md5()
-    m.update(str)
+    m.update(text)
     return m.hexdigest()
 
 
@@ -23,7 +25,6 @@ def from_timestamp_to_datetime_string(timestamp):
 
 
 def parse_html(response):
-
     # 读取返回的内容，编码使用utf-8，放入变量html
     html = response.content.decode('utf-8')
 
