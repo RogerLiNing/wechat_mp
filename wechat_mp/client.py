@@ -51,6 +51,7 @@ class WeChat:
         self._base_url = 'https://mp.weixin.qq.com'
         self._is_login = False
         self.token = None
+        self.accounts = self._load_accounts() or {}
         pkl_data = self._load_session()
         if pkl_data:
             self.session = pkl_data.get("session")
@@ -226,7 +227,7 @@ class WeChat:
             self._delete_session()
             return False
 
-    def _dump_session(self, filename="./session.pkl"):
+    def _dump_session(self, filename="./sessions.pkl"):
         """序列化session"""
         if not self.enable_cookies:
             return
@@ -238,24 +239,28 @@ class WeChat:
             "password": self.password,
             "token": self.token
         }
+        self.accounts.update({self.email: data})
         with open(filename, 'wb') as f:
-            pickle.dump(data, f)
+            pickle.dump(self.accounts, f)
 
-    def _load_session(self, filename="./session.pkl"):
-        """反序列化session"""
+    def _load_accounts(self, filename="./sessions.pkl"):
         if not os.path.exists(filename):
-            return None
+            return {}
 
         with open(filename, 'rb') as f:
-            pkl_data = pickle.load(f, encoding='utf-8')
+            return pickle.load(f, encoding='utf-8')
 
-            # 检测邮箱是否匹配
-            if pkl_data.get("email") != self.email:
-                return None
+    def _load_session(self):
+        """反序列化session"""
 
-            # 检测是否已登陆
-            if self._get_token(pkl_data.get("session")):
-                return pkl_data
+        account = self.accounts.get(self.email)
+        # 检查accounts里有没有 对应的账号
+        if account:
+            if self._get_token(account.get("session")):
+                return account
+            else:
+                print("登录状态已失效.")
+                del self.accounts[self.email]
         return None
 
     @staticmethod
