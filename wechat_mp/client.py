@@ -55,7 +55,6 @@ class WeChat:
         if pkl_data:
             self.session = pkl_data.get("session")
             self.token = pkl_data.get("token")
-            self._is_login = True
         else:
             self.session = requests.Session()
             self.session.headers = {
