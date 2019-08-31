@@ -260,19 +260,16 @@ class WeChat:
                 return account
             else:
                 print("登录状态已失效.")
-                del self.accounts[self.email]
+                self._delete_session()
         return None
 
-    @staticmethod
-    def _delete_session(path="./session.pkl"):
+    def _delete_session(self):
         """
         用于删除过期的session,
         如果在搜索公众号或者文章中 返回的响应 invalid session
-        则将session.pkl文件删除，置为未登录状态
         :return:
         """
-        if os.path.exists(path):
-            os.remove(path)
+        del self.accounts[self.email]
 
     def search_account(self, name_or_id, limit=0, interval=3):
         """
