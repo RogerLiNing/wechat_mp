@@ -1,0 +1,16 @@
+{
+  "a@example.com": {
+    "create_time": "",
+    "session": "",
+    "email": "a@example.com",
+    "password": "12345678",
+    "token": ""
+  },
+  "b@example.com": {
+    "create_time": "",
+    "session": "",
+    "email": "b@example.com",
+    "password": "12345678",
+    "token": ""
+  }
+}

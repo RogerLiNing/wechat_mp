@@ -51,11 +51,11 @@ class WeChat:
         self._base_url = 'https://mp.weixin.qq.com'
         self._is_login = False
         self.token = None
+        self.accounts = self._load_accounts() or {}
         pkl_data = self._load_session()
         if pkl_data:
             self.session = pkl_data.get("session")
             self.token = pkl_data.get("token")
-            self._is_login = True
         else:
             self.session = requests.Session()
             self.session.headers = {
@@ -227,48 +227,49 @@ class WeChat:
             self._delete_session()
             return False
 
-    def _dump_session(self, filename="./session.pkl"):
+    def _dump_session(self, filename="./sessions.pkl"):
         """序列化session"""
         if not self.enable_cookies:
             return
 
-        data = {
+        account_info = {
             "create_time": int(time.time()),
             "session": self.session,
             "email": self.email,
             "password": self.password,
             "token": self.token
         }
+        self.accounts.update({self.email: account_info})
         with open(filename, 'wb') as f:
-            pickle.dump(data, f)
+            pickle.dump(self.accounts, f)
 
-    def _load_session(self, filename="./session.pkl"):
-        """反序列化session"""
+    def _load_accounts(self, filename="./sessions.pkl"):
+        """从pkl文件中加载所有账号信息, 数据格式参考response/accounts.json"""
         if not os.path.exists(filename):
-            return None
+            return {}
 
         with open(filename, 'rb') as f:
-            pkl_data = pickle.load(f, encoding='utf-8')
+            return pickle.load(f, encoding='utf-8')
 
-            # 检测邮箱是否匹配
-            if pkl_data.get("email") != self.email:
-                return None
-
-            # 检测是否已登陆
-            if self._get_token(pkl_data.get("session")):
-                return pkl_data
+    def _load_session(self):
+        """反序列化session"""
+        # 检查accounts里有没有 对应的账号
+        account = self.accounts.get(self.email)
+        if account:
+            if self._get_token(account.get("session")):
+                return account
+            else:
+                print("登录状态已失效.")
+                self._delete_session()
         return None
 
-    @staticmethod
-    def _delete_session(path="./session.pkl"):
+    def _delete_session(self):
         """
         用于删除过期的session,
         如果在搜索公众号或者文章中 返回的响应 invalid session
-        则将session.pkl文件删除，置为未登录状态
         :return:
         """
-        if os.path.exists(path):
-            os.remove(path)
+        del self.accounts[self.email]
 
     def search_account(self, name_or_id, limit=0, interval=3):
         """
