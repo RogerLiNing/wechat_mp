@@ -232,18 +232,19 @@ class WeChat:
         if not self.enable_cookies:
             return
 
-        data = {
+        account_info = {
             "create_time": int(time.time()),
             "session": self.session,
             "email": self.email,
             "password": self.password,
             "token": self.token
         }
-        self.accounts.update({self.email: data})
+        self.accounts.update({self.email: account_info})
         with open(filename, 'wb') as f:
             pickle.dump(self.accounts, f)
 
     def _load_accounts(self, filename="./sessions.pkl"):
+        """从pkl文件中加载所有账号信息, 数据格式参考response/accounts.json"""
         if not os.path.exists(filename):
             return {}
 
@@ -252,9 +253,8 @@ class WeChat:
 
     def _load_session(self):
         """反序列化session"""
-
-        account = self.accounts.get(self.email)
         # 检查accounts里有没有 对应的账号
+        account = self.accounts.get(self.email)
         if account:
             if self._get_token(account.get("session")):
                 return account
