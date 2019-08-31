@@ -34,12 +34,19 @@ pip install wechat-mp
 ## 登陆
 需要注意，你需要先[注册](https://mp.weixin.qq.com/cgi-bin/registermidpage?action=index&lang=zh_CN&token=)一个微信公众号账号，
 服务号或者订阅号都可以。需要注意，只有认证的服务号才能获取行业模板消息。
-导出包后，输入账号和密码登陆；enable_cookies参数控制是否保持登录，需要注意的是，目前使用PIL弹出二维码，如果在没有GUI的操作系统无法扫码。当同一账号连续输错三次密码时，会需要输入验证码，届时会自动打开验证码图片，记住验证码后关闭图片查看，然后在程序中输入验证码即可。
+enable_cookies参数控制是否保持登录, 默认为False，
+
+需要注意的是，目前使用PIL弹出二维码，如果在没有GUI的操作系统无法扫码。
+
+当同一账号连续输错三次密码时，会需要输入验证码，届时会自动打开验证码图片，记住验证码后关闭图片查看，然后在程序中输入验证码即可。
+
 ```python
 from wechat_mp import WeChat
 
 EMAIL = "me@example.com"
 PASSWORD = "admin"
+
+# 可同时初始化多个不同的账号，例如client1, client2
 client = WeChat(email=EMAIL, password=PASSWORD, enable_cookies=True)
 ```
 
@@ -171,8 +178,8 @@ result.save_articles_as_excel("python内存管理")
 
 ## 打包
 ``` 
-python3 -m pip install --user --upgrade setuptools wheel
-python3 setup.py sdist bdist_wheel
+python -m pip install --user --upgrade setuptools wheel
+python setup.py sdist bdist_wheel
 
 dist/
   example_pkg_your_username-0.0.1-py3-none-any.whl
