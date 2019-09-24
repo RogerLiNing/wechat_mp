@@ -174,7 +174,9 @@ class WeChat:
             check_url = self.api_collections('login', 'check login')
             response = self.session.get(check_url).json()
 
-            status = response['status']
+            status = response.get('status')
+            if not status:
+                logger.info("登录的账号未绑定该公众号.")
 
             if status == 0:
                 logger.info("尚未扫码")
