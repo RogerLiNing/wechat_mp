@@ -1,5 +1,5 @@
 requests==2.21.0
-Pillow==5.3.0
+pillow
 openpyxl==2.5.12
 beautifulsoup4==4.6.3
 Sphinx==1.8.2

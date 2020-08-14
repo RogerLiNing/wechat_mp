@@ -99,6 +99,10 @@ class WeChat:
             'template': {
                 'get single template detail': '/advanced/tmplmsg?action=tmpl_preview&t=tmplmsg/preview&id={0}&token={1}&lang=zh_CN',
                 'get template list xhr': '/advanced/tmplmsg?action=tmpl_store&t=tmplmsg/store&token={0}&lang=zh_CN'
+            },
+            'user_analysis': {
+                'get analysis':'/misc/useranalysis?&begin_date={0}&end_date={1}&source={2}&token={3}&lang=zh_CN&f=json&ajax=1',
+                'get property': '/misc/useranalysis?action=attr&begin_date={0}&end_date={1}&token={2}&lang=zh_CN'
             }
         }
 
@@ -627,3 +631,99 @@ class WeChat:
             code = 41
 
         return code
+
+    def get_user_analysis(self, start_date, end_date, source=99999999):
+        """
+        获取用户分析数据
+
+        :param start_date: 开始日期 格式2020-02-25
+        :param end_date: 截止日期 格式2020-02-25
+        :param source: 渠道值
+        全部渠道：99999999
+        搜一搜：1
+        扫描二维码：30
+        图文页右上角菜单：43
+        图文页内公众号名称：57
+        名片分享：17
+        支付后关注：51
+        其他合计：0
+        :return:
+        """
+        headers = {
+            'Host': 'mp.weixin.qq.com',
+            'Connection': 'keep-alive',
+            'Origin': 'https://mp.weixin.qq.com',
+            'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Accept': '*/*',
+            'Referer': f"https://mp.weixin.qq.com/misc/useranalysis?=&token={self.token}&lang=zh_CN",
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.8', }
+
+        api = self.api_collections('user_analysis', 'get analysis').format(start_date,end_date,source,self.token)
+
+
+
+        # 先获取所有模板的总数
+        response = self.session.get(api, headers=headers)
+
+        data_str = response.json()
+        return data_str['category_list'][0]
+        # {'user_source': 99999999, 'list': [{'date': '2020-01-01', 'new_user': 0, 'cancel_user': 0, 'netgain_user': 0, 'cumulate_user': 141},
+
+    def get_user_propery(self, start_date, end_date):
+        """
+        获取用户属性分析数据
+
+        :param start_date: 开始日期 格式2020-02-25
+        :param end_date: 截止日期 格式2020-02-25
+        :return:
+        """
+        headers = {
+            'Host': 'mp.weixin.qq.com',
+            'Connection': 'keep-alive',
+            'Origin': 'https://mp.weixin.qq.com',
+            'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Accept': '*/*',
+            'Referer': f"https://mp.weixin.qq.com/misc/useranalysis?action=attr&token={self.token}&lang=zh_CN",
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'zh-CN,zh;q=0.8', }
+
+        api = self.api_collections('user_analysis', 'get property').format(start_date,end_date,self.token)
+
+
+        # 先获取所有模板的总数
+        response = self.session.get(api, headers=headers)
+
+        data_str = response.text
+        p = re.compile(r'window.cgiData = (\{[\s\S]*\});')
+        raw_string = p.findall(data_str)[0]
+        p = re.compile(r'\+\("(\d*)"\) \|\| 0')
+        p2 = re.compile(r'\s*(.*?): ')
+        new_string = ""
+        for l in raw_string.split("\n"):
+            r = p.findall(l)
+            r2 = p2.findall(l)
+
+            if r:
+                value = f'"count": {r[0]}'
+                value.strip()
+                new_string += value
+
+            if r2:
+                if "count" not in l:
+                    value = f'"{r2[0]}": '
+                    new_line = re.sub(r'\s*(.*?): ', value, l)
+                    new_string += new_line
+            else:
+                new_string += l
+
+        new_string = new_string.replace(' || "未知"',"")
+        new_string = re.sub(r'\s*',"", new_string)
+        new_string = new_string.replace(",]","]")
+        json_data = json.loads(new_string)
+        for k,v in json_data["list"][0].items():
+            print(k,v)
