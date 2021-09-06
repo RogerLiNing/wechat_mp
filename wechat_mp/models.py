@@ -17,6 +17,7 @@ from tqdm import tqdm
 from wechat_mp.exceptions import ArticlesNotObtainError
 from wechat_mp.utils import from_timestamp_to_datetime_string
 
+
 logger = logging.getLogger('wechat_mp')
 
 
