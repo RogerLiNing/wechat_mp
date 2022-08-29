@@ -144,7 +144,7 @@ result.save_articles_as_excel("python内存管理")
 
 ## 打包
 ``` 
-python -m pip install --user --upgrade setuptools wheel
+python -m pip install --upgrade setuptools wheel
 python setup.py sdist bdist_wheel
 
 dist/
@@ -153,7 +153,7 @@ dist/
 ```
 ## 上传
 ``` 
-python -m pip install --user --upgrade twine
+python -m pip install --upgrade twine
 python -m twine upload dist/*
 ```
 
